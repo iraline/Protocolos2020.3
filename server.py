@@ -1,4 +1,4 @@
-import os
+import secrets
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
@@ -81,10 +81,10 @@ class VotingServer:
 
 
     """
-        Generate 48-byte-long-random string 
+        Generate nonce
 
         Returns
-            Bytearray used as nonce
+            48-byte-long-random bytearray to be used as nonce
     """
     def generateNonce(self):
-        return os.urandom(48)
+        return secrets.token_bytes(48)
