@@ -27,7 +27,7 @@ class VotingServer:
         OAEP padding is the recommended choice for new protocols/applications.
 
         Args:
-            packet -> Encrypted packet to be decrypted 
+            packet: Encrypted packet to be decrypted 
 
         Returns:
             Decrypted message

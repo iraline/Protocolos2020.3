@@ -6,4 +6,4 @@ env/
 # Ignore all possible Keys, except test ones.
 **/*.pem
 **/*.pub
-!**/test_keys*
+!**/server_test_keys*
