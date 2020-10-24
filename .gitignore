@@ -2,3 +2,8 @@ env/
 .vscode/
 **/__pycache__/**
 **/*.pyc
+
+# Ignore all possible Keys, except test ones.
+**/*.pem
+**/*.pub
+!**/test_keys*

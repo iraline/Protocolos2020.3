@@ -1,11 +1,44 @@
 import unittest
 from server import VotingServer
 from cryptography.hazmat.primitives import hashes, hmac
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 
 class VotingServerTest(unittest.TestCase):
 
     def setUp(self):
-        self.server = VotingServer('chavePrivada', 'chavePublica')
+
+        # Server's Public Key
+        with open('./tests/keys/server_test_keys.pub', 'rb') as publicKey: 
+            self.serverPublicKey = serialization.load_pem_public_key(publicKey.read())
+        
+        self.server = self.loadVotingServer()
+
+
+    # Read Server's Private and Public Keys to load VotingServer
+    def loadVotingServer(self):
+        with open('./tests/keys/server_test_keys.pem', 'rb') as privateKey: 
+            with open('./tests/keys/server_test_keys.pub', 'rb') as publicKey: 
+                return VotingServer(privateKey.read(), publicKey.read())
+
+
+    def test_can_decrypt_packet_encrypted_with_server_public_key(self):
+
+        # Encrypt message with server's Public Key
+        message = b"I love poodles"
+        cipherText = self.serverPublicKey.encrypt(
+            message,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+
+        serverResponse = self.server.decryptPacketWithServerPrivateKey(cipherText)
+        self.assertEqual(message, serverResponse)
+
+
 
     def test_if_integry_verification_works(self):
 
