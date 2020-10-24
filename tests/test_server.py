@@ -39,7 +39,6 @@ class VotingServerTest(unittest.TestCase):
         self.assertEqual(message, serverResponse)
 
 
-
     def test_if_integry_verification_works(self):
 
         message = b"Good bye, Cruel World!"
@@ -55,7 +54,16 @@ class VotingServerTest(unittest.TestCase):
 
         tampered_message = b"Good bye, Cruel World" # Without '!'
         self.assertFalse(self.server.verifyPacketIntegrity(hmacKey, tampered_message, hmacTag))
-    
+
+
+    # Just checks if nonce is not the same  
+    def test_it_generates_different_nonces(self):
+        
+        nonce1 = self.server.generateNonce()
+        nonce2 = self.server.generateNonce()
+
+        self.assertNotEqual(nonce1, nonce2)
+
 
 if __name__ == '__main__':
     unittest.main()
