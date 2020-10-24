@@ -1,6 +1,7 @@
 import secrets
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import serialization
 from cryptography.exceptions import InvalidSignature
 
@@ -44,6 +45,23 @@ class VotingServer:
             )
         )
 
+    """
+        Decrypt packet encrypted with given symmetric Key.
+        It's expected for the packet to have been encrypted with AES256 and GCM mode
+
+        Args:
+            key: Symmetric key used in encryption
+            nonce: Bytearray used as nonce. Never reuse the same (nonce, key) pair
+            packet: Encrypted packet
+        
+        Returns:
+            Decrypted packet
+    """
+    def decryptPacketWithSymmetricKey(self, key, nonce, packet):
+        
+        aesgcm = AESGCM(key)
+        return aesgcm.decrypt(nonce, packet, associated_data=None)
+
 
     """
         Verifies if a received packet has integrity
@@ -77,7 +95,6 @@ class VotingServer:
             hasIntegrity = False
 
         return hasIntegrity
-
 
 
     """

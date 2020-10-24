@@ -3,6 +3,7 @@ from server import VotingServer
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 class VotingServerTest(unittest.TestCase):
 
@@ -55,8 +56,22 @@ class VotingServerTest(unittest.TestCase):
         tampered_message = b"Good bye, Cruel World" # Without '!'
         self.assertFalse(self.server.verifyPacketIntegrity(hmacKey, tampered_message, hmacTag))
 
+    
+    def test_can_decrypt_with_symmetric_key(self):
+        
+        message = b"Dead man tells no tales"
+        
+        # Generate Nonce and Key
+        nonce = self.server.generateNonce()
+        key = AESGCM.generate_key(bit_length=256)
+        aesgcm = AESGCM(key)
 
-    # Just checks if nonce is not the same  
+        # Encrypt message
+        cipherText = aesgcm.encrypt(nonce, message, associated_data=None)
+
+        self.assertEqual(message, self.server.decryptPacketWithSymmetricKey(key, nonce, cipherText))
+
+
     def test_it_generates_different_nonces(self):
         
         nonce1 = self.server.generateNonce()
