@@ -1,5 +1,6 @@
-
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes, hmac
 
 
 class VotingClient:
@@ -20,4 +21,22 @@ class VotingClient:
         self.serverPublicKey = serialization.load_pem_public_key(serverPublicKey)
 
 
-    
+    """
+        Sign message with Client's Private Key
+
+        Args:
+            message: message to be signed
+
+        Returns:
+            Message Signature
+    """
+    def signMessage(self, message):
+        
+        return self.privateKey.sign(
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
