@@ -12,6 +12,14 @@ class VotingServerTest(unittest.TestCase):
         # Server's Public Key
         with open('./tests/keys/server_test_keys.pub', 'rb') as publicKey: 
             self.serverPublicKey = serialization.load_pem_public_key(publicKey.read())
+
+        # Client's Private Key
+        with open('./tests/keys/client_test_keys.pem', 'rb') as clientPrivateKey: 
+            self.clientPrivateKey = serialization.load_pem_private_key(clientPrivateKey.read(), password=None)
+
+        # Client's Public Key
+        with open('./tests/keys/client_test_keys.pub', 'rb') as clientPublicKey: 
+            self.clientPublicKey = serialization.load_pem_public_key(clientPublicKey.read())
         
         self.server = self.loadVotingServer()
 
@@ -78,6 +86,29 @@ class VotingServerTest(unittest.TestCase):
         nonce2 = self.server.generateNonce()
 
         self.assertNotEqual(nonce1, nonce2)
+
+    
+    def test_can_verify_client_signatures(self):
+        
+        message = b"Hey, listen"
+        signature = self.clientPrivateKey.sign(
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+
+        # Test signature using Client's public key
+        with open('./tests/keys/client_test_keys.pub', 'rb') as clientPublicKey: 
+            self.assertTrue(self.server.verifyClientSignature(clientPublicKey.read(), message, signature))
+
+        # Test signature using Server's public key
+        # Could be any other key, just to tell the signature function works correctly.
+        with open('./tests/keys/server_test_keys.pub', 'rb') as serverPublicKey: 
+            self.assertFalse(self.server.verifyClientSignature(serverPublicKey.read(), message, signature))
+
 
 
 if __name__ == '__main__':

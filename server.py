@@ -67,9 +67,9 @@ class VotingServer:
         Verifies if a received packet has integrity
 
         Args:
-            msg: A bytearray or string of the packet being asserted
-            tag: A bytearray or string of the HMAC tag sent, that will be verified.
             hmacKey: The authentication key used to process the HMAC 
+            packet: A bytearray or string of the packet being asserted
+            hmacTag: A bytearray or string of the HMAC tag sent, that will be verified.
 
         Returns:
             A boolean that that represents a succesful verification
@@ -85,6 +85,10 @@ class VotingServer:
         if isinstance(hmacKey, str):
             hmacKey = hmacKey.encode() 
         
+        if isinstance(hmacTag, str):
+            hmacTag = hmacTag.encode() 
+
+
         # These functions expect a bytearray for key, packet and tag
         h = hmac.HMAC(hmacKey, hashes.SHA256()) 
         h.update(packet) 
@@ -105,3 +109,38 @@ class VotingServer:
     """
     def generateNonce(self):
         return secrets.token_bytes(48)
+
+    
+
+    """
+        Verify if the packet was signed with the provided Public Key
+
+        Args:
+            clientPublicKey: Bytearray of the Client's Public Key
+            message: Message signed with corresponding Client's Private Key
+            signature: Signature of the message
+        
+        Returns:
+            Wheter it was signed by the corresponding Private Key or not.
+    """
+    def verifyClientSignature(self, clientPublicKey, message, signature):
+
+        matchesSignature = True
+
+        # Load Client's Public Key Object
+        clientPublicKey = serialization.load_pem_public_key(clientPublicKey)
+
+        try:
+            clientPublicKey.verify(
+                signature,
+                message,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+        except InvalidSignature:
+            matchesSignature = False
+
+        return matchesSignature
