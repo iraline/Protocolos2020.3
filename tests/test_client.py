@@ -35,6 +35,7 @@ class VotingClientTest(unittest.TestCase):
         self.assertNotEqual(2 + 2, 5)
 
 
+    # Test: VotingClient.signMessage
     def test_can_sign_messages(self):
 
         message = b"Tocando um modao de arrastar o chifre no asfalto"
@@ -56,4 +57,57 @@ class VotingClientTest(unittest.TestCase):
             isCorrectlySigned = False
 
         self.assertTrue(isCorrectlySigned)
-            
+
+
+
+
+    # Test: VotingClient.getMasterKey
+    def test_generate_master_key_correctly(self):
+
+        masterKey = self.client.getMasterKey()
+
+        # It must be 256-bit long
+        self.assertEqual(len(masterKey), 256)
+
+        # It must genereate different masterKeys on different calls
+        masterKey2 = self.client.getMasterKey()
+        self.assertNotEqual(masterKey, masterKey2)
+
+
+    # Test: VotingClient.applyMAC
+    def test_can_apply_mac_correctly(self):
+
+        message = "Fui hackeado, chama a tempest!"
+        key = b'S3cr3t'
+
+        tag = self.client.applyMAC(key, message)
+        
+        # Strip message from tag
+        tag = tag[len(message):]
+
+        # Verify
+        h = hmac.HMAC(key, hashes.SHA256())
+        h.update(message.encode())
+
+        try:
+            h.verify(tag)
+            isVerificationSuccesful = True
+        except InvalidSignature:
+            isVerificationSuccesful = False
+
+        self.assertTrue(isVerificationSuccesful)
+
+
+    # Test: VotingClient.verifyMAC
+    def test_can_verify_mac_correctly(self):
+        
+        message = "Oh sheep, here we go again"
+        key = b'S3cr3t'
+
+        # Create HMAC
+        h = hmac.HMAC(key, hashes.SHA256())
+        h.update(message.encode())
+        tag = h.finalize()
+
+        # Verify
+        self.assertTrue(self.client.verifyMAC(key, message, tag))
