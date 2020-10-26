@@ -109,7 +109,3 @@ class VotingServerTest(unittest.TestCase):
         with open('./tests/keys/server_test_keys.pub', 'rb') as serverPublicKey: 
             self.assertFalse(self.server.verifyClientSignature(serverPublicKey.read(), message, signature))
 
-
-
-if __name__ == '__main__':
-    unittest.main()
