@@ -66,8 +66,28 @@ class CriptTest(unittest.TestCase):
         self.assertEqual(message, cripto.decryptPacketWithSymmetricKey(key, nonce, cipherText))
 
 
+    def test_can_encrypt_message_with_public_key(self):
 
-    def test_can_decrypt_packet_encrypted_with_public_key(self):
+        message = b"Aqui nois constroi cifra, nao eh agua com base64"
+        key = b'S3cr3t'
+
+        cipherText = cripto.encryptWithPublicKey(self.clientPublicKey, message)
+
+        decryptedText = self.clientPrivateKey.decrypt(
+            cipherText, 
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+
+        self.assertEqual(message, decryptedText)
+
+
+
+
+    def test_can_decrypt_message_encrypted_with_public_key(self):
 
         # Encrypt message with Public Key
         message = b"I love poodles"
@@ -111,8 +131,8 @@ class CriptTest(unittest.TestCase):
 
         masterKey = cripto.getMasterKey()
 
-        # It must be 256-bit long
-        self.assertEqual(len(masterKey), 256)
+        # It must be 32 bytes (256-bit) long
+        self.assertEqual(len(masterKey), 32)
 
         # It must genereate different masterKeys on different calls
         masterKey2 = cripto.getMasterKey()

@@ -35,6 +35,31 @@ def decryptPacketWithSymmetricKey(key, nonce, packet):
 
 
 """
+    Encrypt message with the provided Public Key
+    
+    The padding part is extracted from an example in Cryptography's Docs
+    OAEP padding is the recommended choice for new protocols/applications.
+      
+    Args:
+        publicKey: Cryptography's Serialized Public Key object
+        message: message to be encrypted 
+    
+    Returns:
+        Encrypted message
+"""
+def encryptWithPublicKey(publicKey, message):
+
+    return publicKey.encrypt(
+        message,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+
+
+"""
     Decrypt packets encrypted with the Public Key schemes
 
     The padding part is extracted from an example in Cryptography's Docs
@@ -51,9 +76,9 @@ def decryptPacketWithPrivateKey(privateKey, packet):
     return privateKey.decrypt(
         packet, 
         padding.OAEP(
-        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-        algorithm=hashes.SHA256(),
-        label=None
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
     )
 )
 
@@ -117,7 +142,7 @@ def verifyMAC(key, sentMessage, sentMAC):
 
 
 """
-    Generate a random master key of 256 bits.
+    Generate a random master key of 256 bits (32 Bytes).
     Args:
         None
     
@@ -125,7 +150,7 @@ def verifyMAC(key, sentMessage, sentMAC):
         It returns a master key in byte format
 """
 def getMasterKey():
-    return os.urandom(256)
+    return os.urandom(32)
 
 
 """
@@ -141,11 +166,13 @@ def getMasterKey():
 def applyMAC(key, message):
     h = hmac.HMAC(key, hashes.SHA256())
     
-    messageAsBytes = str.encode(message)
-    h.update(messageAsBytes)
+    if isinstance(message, str):
+        message = str.encode(message)
     
-    return b"".join([messageAsBytes, h.finalize()])  # to get the message with the MAC appended
-    # return h.finalize()           #to get only the MAC  
+    h.update(message)
+    
+    # return b"".join([message, h.finalize()])  # to get the message with the MAC appended
+    return h.finalize()           #to get only the MAC  
 
 
 

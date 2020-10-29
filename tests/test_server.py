@@ -4,7 +4,9 @@ from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import json
 import cripto
+from exceptions import InvalidPacket
 
 class VotingServerTest(unittest.TestCase):
 
@@ -48,8 +50,37 @@ class VotingServerTest(unittest.TestCase):
         serverResponse = self.server.decryptPacketWithServerPrivateKey(cipherText)
         self.assertEqual(message, serverResponse)
 
+    def test_can_create_voting_session(self):
 
-    # def test_can_create_voting_session(self):
+        # Create packet for Voting Session creation
+        sessionOptions = {
+            'sessionName': 'Pizza',
+            'candidates': ['Portuguesa', 'Calabresa', 'Carne de Sol'],
+            'sessionMode': 'maxvotes',
+            'maxVotes': 10
+        }
 
-    #     cripto.
-    #     self.serverPublicKey
+        sessionJSON = json.dumps(sessionOptions)
+        
+        sessionAsBytes = sessionJSON.encode() 
+        hmacKey = cripto.getMasterKey()
+
+        encryptedHMACKey = cripto.encryptWithPublicKey(self.serverPublicKey, hmacKey)
+        hmacTag = cripto.applyMAC(hmacKey, sessionJSON)
+
+        packet = sessionAsBytes + hmacTag + encryptedHMACKey
+
+        # Check Packet Parsing
+        self.assertEqual(encryptedHMACKey, packet[-len(encryptedHMACKey):])
+        self.assertEqual(hmacTag, packet[-(len(encryptedHMACKey) + len(hmacKey)):-len(encryptedHMACKey)])
+        self.assertEqual(sessionAsBytes, packet[:-(len(encryptedHMACKey) + len(hmacKey))])
+
+        # Session is created and stored in memory
+        self.assertEqual(len(self.server.sessions), 0)
+        sessionID = self.server.createVotingSession(packet)
+        self.assertEqual(len(self.server.sessions), 1)
+        self.assertEqual(sessionID, sessionOptions['sessionName'])
+
+        # Server will reject creating new session with same ID
+        with self.assertRaises(InvalidPacket):
+            self.server.createVotingSession(packet) 

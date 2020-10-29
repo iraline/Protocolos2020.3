@@ -63,9 +63,6 @@ class VotingClientTest(unittest.TestCase):
 
         tag = cripto.applyMAC(key, message)
         
-        # Strip message from tag
-        tag = tag[len(message):]
-
         # Verify
         h = hmac.HMAC(key, hashes.SHA256())
         h.update(message.encode())
