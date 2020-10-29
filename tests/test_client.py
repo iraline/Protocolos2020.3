@@ -1,5 +1,6 @@
 import unittest
 from client import VotingClient
+import cripto
 from cryptography.hazmat.primitives import serialization
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -30,11 +31,6 @@ class VotingClientTest(unittest.TestCase):
                     return VotingClient(privateKey.read(), publicKey.read(), serverPublicKey.read())
 
 
-    # Just checks wheter this test script is loading correctly
-    def test_loads_test(self):
-        self.assertNotEqual(2 + 2, 5)
-
-
     # Test: VotingClient.signMessage
     def test_can_sign_messages(self):
 
@@ -59,28 +55,13 @@ class VotingClientTest(unittest.TestCase):
         self.assertTrue(isCorrectlySigned)
 
 
-
-
-    # Test: VotingClient.getMasterKey
-    def test_generate_master_key_correctly(self):
-
-        masterKey = self.client.getMasterKey()
-
-        # It must be 256-bit long
-        self.assertEqual(len(masterKey), 256)
-
-        # It must genereate different masterKeys on different calls
-        masterKey2 = self.client.getMasterKey()
-        self.assertNotEqual(masterKey, masterKey2)
-
-
     # Test: VotingClient.applyMAC
     def test_can_apply_mac_correctly(self):
 
         message = "Fui hackeado, chama a tempest!"
         key = b'S3cr3t'
 
-        tag = self.client.applyMAC(key, message)
+        tag = cripto.applyMAC(key, message)
         
         # Strip message from tag
         tag = tag[len(message):]
@@ -110,4 +91,4 @@ class VotingClientTest(unittest.TestCase):
         tag = h.finalize()
 
         # Verify
-        self.assertTrue(self.client.verifyMAC(key, message, tag))
+        self.assertTrue(cripto.verifyMAC(key, message, tag))
