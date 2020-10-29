@@ -45,10 +45,10 @@ class CriptTest(unittest.TestCase):
         hmacTag = h.finalize()
 
         # Verify function
-        self.assertTrue(cripto.verifyPacketIntegrity(hmacKey, message, hmacTag))
+        self.assertTrue(cripto.verifyMAC(hmacKey, message, hmacTag))
 
         tampered_message = b"Good bye, Cruel World" # Without '!'
-        self.assertFalse(cripto.verifyPacketIntegrity(hmacKey, tampered_message, hmacTag))
+        self.assertFalse(cripto.verifyMAC(hmacKey, tampered_message, hmacTag))
 
 
     def test_can_decrypt_with_symmetric_key(self):

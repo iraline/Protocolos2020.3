@@ -24,13 +24,3 @@ class ClientServerIntegrationTest(unittest.TestCase):
                 with open('./tests/keys/server_test_keys.pub', 'rb') as serverPublicKey: 
                     return VotingClient(privateKey.read(), publicKey.read(), serverPublicKey.read())
 
-
-    def test_client_can_sign_messages_and_server_verifies(self):
-
-        message = b"Save my magician, big fan here"
-        signature = self.client.signMessage(message)
-        
-        with open('./tests/keys/client_test_keys.pub', 'rb') as publicKey: 
-            clientPubKey = publicKey.read()
-
-        self.assertTrue(self.server.verifyClientSignature(clientPubKey, message, signature))

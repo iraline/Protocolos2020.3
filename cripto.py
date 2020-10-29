@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import serialization
-from cryptography.exceptions import InvalidSignature
+from cryptography import exceptions
 
 
 """
@@ -16,40 +16,6 @@ from cryptography.exceptions import InvalidSignature
 """
 def generateNonce():
     return secrets.token_bytes(48)
-
-
-"""
-    Verifies if a received packet has integrity
-    Args:
-        hmacKey: The authentication key used to process the HMAC 
-        packet: A bytearray or string of the packet being asserted
-        hmacTag: A bytearray or string of the HMAC tag sent, that will be verified.
-    Returns:
-        A boolean that that represents a succesful verification
-"""
-def verifyPacketIntegrity(hmacKey, packet, hmacTag):
-    hasIntegrity = True
-
-    # Converts string to bytearray
-    if isinstance(packet, str):
-        packet = packet.encode() 
-
-    if isinstance(hmacKey, str):
-        hmacKey = hmacKey.encode() 
-    
-    if isinstance(hmacTag, str):
-        hmacTag = hmacTag.encode() 
-
-    # These functions expect a bytearray for key, packet and tag
-    h = hmac.HMAC(hmacKey, hashes.SHA256()) 
-    h.update(packet) 
-    
-    try:
-        h.verify(hmacTag)
-    except InvalidSignature:
-        hasIntegrity = False
-
-    return hasIntegrity
 
 
 """
@@ -120,7 +86,7 @@ def verifySignature(publicKey, message, signature):
             ),
             hashes.SHA256()
         )
-    except InvalidSignature:
+    except exceptions.InvalidSignature:
         matchesSignature = False
     
     return matchesSignature
@@ -140,7 +106,7 @@ def verifySignature(publicKey, message, signature):
 def verifyMAC(key, sentMessage, sentMAC):
     h = hmac.HMAC(key, hashes.SHA256())
     
-    messageAsBytes = str.encode(sentMessage)
+    messageAsBytes = sentMessage
     h.update(messageAsBytes)
     
     try:

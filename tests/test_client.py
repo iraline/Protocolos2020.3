@@ -82,12 +82,12 @@ class VotingClientTest(unittest.TestCase):
     # Test: VotingClient.verifyMAC
     def test_can_verify_mac_correctly(self):
         
-        message = "Oh sheep, here we go again"
+        message = b"Oh sheep, here we go again"
         key = b'S3cr3t'
 
         # Create HMAC
         h = hmac.HMAC(key, hashes.SHA256())
-        h.update(message.encode())
+        h.update(message)
         tag = h.finalize()
 
         # Verify

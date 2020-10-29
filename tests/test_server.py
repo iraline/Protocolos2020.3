@@ -4,6 +4,7 @@ from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import cripto
 
 class VotingServerTest(unittest.TestCase):
 
@@ -47,3 +48,8 @@ class VotingServerTest(unittest.TestCase):
         serverResponse = self.server.decryptPacketWithServerPrivateKey(cipherText)
         self.assertEqual(message, serverResponse)
 
+
+    # def test_can_create_voting_session(self):
+
+    #     cripto.
+    #     self.serverPublicKey
