@@ -1,6 +1,7 @@
 import secrets
 import os
 import cripto
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -116,54 +117,17 @@ def verifySignature(publicKey, message, signature):
     
     return matchesSignature
 
-
-"""
-    Verify if a message's MAC is valid, given a pre-shared key. To create the tag
-    we are using the SHA256 Hash function.
-    Args:
-        key: A byte string
-        message: A byte string
-        sentMAC: A byte string
-    
-    Returns:
-        It returns True if the MAC is valid or False if it isn't
-"""
-def verifyMAC(key, sentMessage, sentMAC):
-    h = hmac.HMAC(key, hashes.SHA256())
-    
-    messageAsBytes = sentMessage
-    h.update(messageAsBytes)
-    
-    try:
-        h.verify(sentMAC)
-        return True
-    except exceptions.InvalidSignature as err:
-        return False
-
-
-"""
-    Generate a random master key of 256 bits (32 Bytes).
-    Args:
-        None
-    
-    Returns:
-        It returns a master key in byte format
-"""
-def getMasterKey():
-    return os.urandom(32)
-
-
 """
     Apply a message authentication code to a message using a key. To create the tag
     we are using the SHA256 Hash function.
     Args:
-        key: A byte string
+        key: A 32 byte string
         message: A common string
     
     Returns:
-        Message with a MAC in the end
+        The tag, A.K.A. MAC (Message Authentication Code)
 """
-def applyMAC(key, message):
+def createTag(key, message):
     h = hmac.HMAC(key, hashes.SHA256())
     
     if isinstance(message, str):
@@ -172,8 +136,77 @@ def applyMAC(key, message):
     h.update(message)
     
     # return b"".join([message, h.finalize()])  # to get the message with the MAC appended
-    return h.finalize()           #to get only the MAC  
+    return h.finalize()           # to get only the MAC  
 
+
+"""
+    Verify if a message's MAC is valid, given a pre-shared key. To create the tag
+    we are using the SHA256 Hash function.
+    Args:
+        key: A 32 byte string
+        message: A byte string
+        sentMAC: A byte string
+    
+    Returns:
+        It returns True if the MAC is valid or False if it isn't
+"""
+def verifyTag(key, sentMessage, sentTag):
+    h = hmac.HMAC(key, hashes.SHA256())
+    
+    messageAsBytes = sentMessage
+    h.update(messageAsBytes)
+    
+    try:
+        h.verify(sentTag)
+        return True
+    except exceptions.InvalidSignature:
+        return False
+
+
+"""
+    Use the master key to create two others keys, that are going to be used to
+    encryption and MAC
+    Args:
+        masterKey: A 32 byte key in byte format
+        salt: A 16 byte salt in byte format
+    Returns:
+        Two 32 byte keys
+"""
+def generateKeysWithMS(masterKey, salt):
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=64,
+        salt=salt,
+        info= b"",
+    )
+    bigKey = hkdf.derive(masterKey)
+    return bigKey[:(len(bigKey)//2)], bigKey[(len(bigKey)//2):]
+
+"""
+    Generate a random master key of 256 bits (32 Bytes)
+    Returns:
+        It returns a master key in byte format
+"""
+def generateMasterKey():
+    return os.urandom(32)
+
+
+"""
+    Generate a 32 byte key to be used in MAC
+    Returns:
+        It returns a key in byte format
+"""
+def generateMACKey():
+    return os.urandom(32)
+
+
+"""
+    Generate a 16 byte salt
+    Returns:
+        Salt
+"""
+def generateSalt():
+    return os.urandom(16)
 
 
 """
