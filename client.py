@@ -37,8 +37,23 @@ class VotingClient:
         return cripto.signMessage(self.privateKey, message)
 
     
-                   
+    """
+        Request a verification for a session result
 
+        >CONSIDERING THE CASTING OF AN INTEGER TO A 4 BYTE BYTEARRAY<
 
-
-
+        Args:
+            The session ID
+        Returns:
+            The package that should be sent in bytearray format
+    """
+    def verifySession(self, sessionId):
+        nonce = cripto.generateNonce()
+        message = b"".join([len(sessionId).to_bytes(2, "little"), nonce])
+        message = b"".join([message, sessionId.encode()])
+        macKey = cripto.generateMACKey()
+        tag = cripto.createTag(macKey, message)
+        message = b"".join([message, tag])
+        encryptedMacKey = cripto.encryptWithPublicKey(self.serverPublicKey, macKey)
+        message = b"".join([message, encryptedMacKey])
+        return message

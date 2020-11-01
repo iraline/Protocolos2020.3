@@ -120,6 +120,7 @@ def verifySignature(publicKey, message, signature):
 """
     Apply a message authentication code to a message using a key. To create the tag
     we are using the SHA256 Hash function.
+
     Args:
         key: A 32 byte string
         message: A common string
@@ -142,6 +143,7 @@ def createTag(key, message):
 """
     Verify if a message's MAC is valid, given a pre-shared key. To create the tag
     we are using the SHA256 Hash function.
+
     Args:
         key: A 32 byte string
         message: A byte string
@@ -166,6 +168,7 @@ def verifyTag(key, sentMessage, sentTag):
 """
     Use the master key to create two others keys, that are going to be used to
     encryption and MAC
+
     Args:
         masterKey: A 32 byte key in byte format
         salt: A 16 byte salt in byte format
@@ -184,6 +187,7 @@ def generateKeysWithMS(masterKey, salt):
 
 """
     Generate a random master key of 256 bits (32 Bytes)
+
     Returns:
         It returns a master key in byte format
 """
@@ -193,6 +197,7 @@ def generateMasterKey():
 
 """
     Generate a 32 byte key to be used in MAC
+
     Returns:
         It returns a key in byte format
 """
@@ -202,6 +207,7 @@ def generateMACKey():
 
 """
     Generate a 16 byte salt
+    
     Returns:
         Salt
 """

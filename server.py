@@ -67,7 +67,7 @@ class VotingServer:
 
         hmacKey = self.decryptPacketWithServerPrivateKey(encryptedHMACKey)        
 
-        if not cripto.verifyMAC(hmacKey, message, hmacTag):
+        if not cripto.verifyTag(hmacKey, message, hmacTag):
             raise InvalidPacket
         
         # Get Session Options

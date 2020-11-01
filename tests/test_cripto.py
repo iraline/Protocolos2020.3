@@ -45,10 +45,10 @@ class CriptTest(unittest.TestCase):
         hmacTag = h.finalize()
 
         # Verify function
-        self.assertTrue(cripto.verifyMAC(hmacKey, message, hmacTag))
+        self.assertTrue(cripto.verifyTag(hmacKey, message, hmacTag))
 
         tampered_message = b"Good bye, Cruel World" # Without '!'
-        self.assertFalse(cripto.verifyMAC(hmacKey, tampered_message, hmacTag))
+        self.assertFalse(cripto.verifyTag(hmacKey, tampered_message, hmacTag))
 
 
     def test_can_decrypt_with_symmetric_key(self):
@@ -126,14 +126,14 @@ class CriptTest(unittest.TestCase):
             self.assertFalse(cripto.verifySignature(serverPubKey.read(), message, signature))
 
     
-    # Test: getMasterKey
+    # Test: generateMasterKey
     def test_generate_master_key_correctly(self):
 
-        masterKey = cripto.getMasterKey()
+        masterKey = cripto.generateMasterKey()
 
         # It must be 32 bytes (256-bit) long
         self.assertEqual(len(masterKey), 32)
 
         # It must genereate different masterKeys on different calls
-        masterKey2 = cripto.getMasterKey()
+        masterKey2 = cripto.generateMasterKey()
         self.assertNotEqual(masterKey, masterKey2)

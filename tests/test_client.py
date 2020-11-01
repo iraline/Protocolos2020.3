@@ -61,7 +61,7 @@ class VotingClientTest(unittest.TestCase):
         message = "Fui hackeado, chama a tempest!"
         key = b'S3cr3t'
 
-        tag = cripto.applyMAC(key, message)
+        tag = cripto.createTag(key, message)
         
         # Verify
         h = hmac.HMAC(key, hashes.SHA256())
@@ -88,4 +88,5 @@ class VotingClientTest(unittest.TestCase):
         tag = h.finalize()
 
         # Verify
-        self.assertTrue(cripto.verifyMAC(key, message, tag))
+        self.assertTrue(cripto.verifyTag(key, message, tag))
+
