@@ -49,8 +49,7 @@ class VotingClient:
     """
     def verifySession(self, sessionId):
         nonce = cripto.generateNonce()
-        message = b"".join([len(sessionId).to_bytes(2, "little"), nonce])
-        message = b"".join([message, sessionId.encode()])
+        message = b"".join([nonce, sessionId.encode()])
         macKey = cripto.generateMACKey()
         tag = cripto.createTag(macKey, message)
         message = b"".join([message, tag])

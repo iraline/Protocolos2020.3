@@ -157,3 +157,32 @@ class VotingServer:
         return True
 
         
+    """
+        Verify if the tag sent from client from the verify session package is valid
+
+        Args:
+            a
+        Returns:
+            True if the tag is valid, else false
+    """
+    def verifySessionTag(self, package):
+        nonceSz = 48
+        tagSz = 32
+        encryptedMacKeySz = 512
+
+        if len(package) <= (nonceSz + tagSz + encryptedMacKeySz):
+            return False
+        
+        message = package[:-(encryptedMacKeySz + tagSz)]
+        sentTag = package[-(encryptedMacKeySz + tagSz):-encryptedMacKeySz]
+        sentEncryptedMacKey = package[-encryptedMacKeySz:]
+
+        nonce = message[:nonceSz]
+        sessionId = message[nonceSz:]
+        
+        macKey = cripto.decryptPacketWithPrivateKey(self.privateKey, sentEncryptedMacKey)
+        
+        if cripto.verifyTag(macKey, message, sentTag):
+            return True, nonce, sessionId, macKey
+        else:
+            return False, nonce, sessionId, macKey
