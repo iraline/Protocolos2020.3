@@ -161,7 +161,7 @@ class VotingServer:
         Verify if the tag sent from client from the verify session package is valid
 
         Args:
-            a
+            The package sent from the client method "client.verifySession()"
         Returns:
             True if the tag is valid, else false
     """
