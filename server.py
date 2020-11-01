@@ -163,7 +163,7 @@ class VotingServer:
         Args:
             The package sent from the client method "client.verifySession()"
         Returns:
-            True if the tag is valid, else false
+            True if the tag is valid, else false, the nonce used, the sessionId and the mac key
     """
     def verifySessionTag(self, package):
         nonceSz = 48
