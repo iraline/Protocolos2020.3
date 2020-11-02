@@ -6,6 +6,7 @@ from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import serialization
+from cryptography.fernet import Fernet
 from cryptography import exceptions
 
 
@@ -234,3 +235,50 @@ def signMessage(privateKey, message):
         ),
         hashes.SHA256()
     )
+
+#---------------------------------------------------------------------
+#*******************************************************************************************************88
+"""
+    Generate a with Symmetric Key with the length.
+
+    
+    Returns:
+        A Symetric Key
+"""
+def generateSymmetricKey():
+    
+    return Fernet.generate_key()
+    
+
+"""
+    Encrypt a message with a Key.
+
+    Args:
+        key: A key that will be used for encryption
+        message: Message to be encrypted in bytes
+        
+    Returns:
+        Encrypted message
+"""
+def encryptMessageWithKey(key, message):
+    
+    cipher = Fernet(key)
+    return cipher.encrypt(message)
+    
+   
+"""
+    Decrypt a message with Symmetric Key.
+
+    Args:
+        key: A key that will be used for decryption
+        message: Encrypted message in bytes
+        
+    Returns:
+        Encrypted message
+"""
+def decryptMessageWithKey(key, message):
+    
+    cipher = Fernet(key)
+    decrypted_message = cipher.decrypt(message)
+    print (decrypted_message)
+
