@@ -56,7 +56,7 @@ class VotingServerTest(unittest.TestCase):
         sessionOptions = {
             'sessionName': 'Pizza',
             'candidates': ['Portuguesa', 'Calabresa', 'Carne de Sol'],
-            'sessionMode': 'maxvotes',
+            'sessionMode': 'maxVotes',
             'maxVotes': 10
         }
 
