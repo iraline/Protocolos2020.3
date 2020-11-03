@@ -63,10 +63,10 @@ class VotingServerTest(unittest.TestCase):
         sessionJSON = json.dumps(sessionOptions)
         
         sessionAsBytes = sessionJSON.encode() 
-        hmacKey = cripto.getMasterKey()
+        hmacKey = cripto.generateMACKey()
 
         encryptedHMACKey = cripto.encryptWithPublicKey(self.serverPublicKey, hmacKey)
-        hmacTag = cripto.applyMAC(hmacKey, sessionJSON)
+        hmacTag = cripto.createTag(hmacKey, sessionJSON)
 
         packet = sessionAsBytes + hmacTag + encryptedHMACKey
 
@@ -84,3 +84,4 @@ class VotingServerTest(unittest.TestCase):
         # Server will reject creating new session with same ID
         with self.assertRaises(InvalidPacket):
             self.server.createVotingSession(packet) 
+

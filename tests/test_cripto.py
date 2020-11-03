@@ -34,6 +34,27 @@ class CriptTest(unittest.TestCase):
         self.assertNotEqual(nonce1, nonce2)
 
 
+    # Test: VotingClient.applyMAC
+    def test_can_apply_mac_correctly(self):
+
+        message = "Fui hackeado, chama a tempest!"
+        key = b'S3cr3t'
+
+        tag = cripto.createTag(key, message)
+        
+        # Verify
+        h = hmac.HMAC(key, hashes.SHA256())
+        h.update(message.encode())
+
+        try:
+            h.verify(tag)
+            isVerificationSuccesful = True
+        except InvalidSignature:
+            isVerificationSuccesful = False
+
+        self.assertTrue(isVerificationSuccesful)
+
+
     def test_if_integry_verification_works(self):
 
         message = b"Good bye, Cruel World!"
