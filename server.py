@@ -127,11 +127,13 @@ class VotingServer:
             'maxVotes': {
                 'type': 'number',
                 'dependencies': {'sessionMode': ['maxVotes']},
-                'min': 1
+                'min': 1,
+                'required': True
             },
             'duration': {
                 'type': 'number',
                 'dependencies': {'sessionMode': ['duration']},
+                'required': True
             }
         }
 
