@@ -40,12 +40,10 @@ class VotingClient:
     """
         Request a verification for a session result
 
-        >CONSIDERING THE CASTING OF AN INTEGER TO A 4 BYTE BYTEARRAY<
-
         Args:
             The session ID
         Returns:
-            The package that should be sent in bytearray format
+            The packet that should be sent in bytearray format
     """
     def verifySession(self, sessionId):
         nonce = cripto.generateNonce()
