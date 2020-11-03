@@ -46,6 +46,7 @@ class VotingClient:
             The packet that should be sent in bytearray format
     """
     def verifySession(self, sessionId):
+
         nonce = cripto.generateNonce()
         message = b"".join([nonce, sessionId.encode()])
         macKey = cripto.generateMACKey()

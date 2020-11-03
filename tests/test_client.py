@@ -21,6 +21,9 @@ class VotingClientTest(unittest.TestCase):
         with open('./tests/keys/client_test_keys.pub', 'rb') as clientPublicKey: 
             self.clientPublicKey = serialization.load_pem_public_key(clientPublicKey.read())
         
+        # Client's Public Key
+        with open('./tests/keys/server_test_keys.pem', 'rb') as serverPrivateKey: 
+            self.serverPrivateKey = serialization.load_pem_private_key(serverPrivateKey.read(), password=None)
         
     # Read Client's Private and Public Keys and Server's public key to load VotingClient
     def loadVotingClient(self):
@@ -54,39 +57,28 @@ class VotingClientTest(unittest.TestCase):
 
         self.assertTrue(isCorrectlySigned)
 
+    # Test: VotingClient.verifySession
+    def test_can_request_a_session_verification(self):
 
-    # Test: VotingClient.applyMAC
-    def test_can_apply_mac_correctly(self):
+        sessionID = 'mySessionID'
+        request = self.client.verifySession(sessionID)
 
-        message = "Fui hackeado, chama a tempest!"
-        key = b'S3cr3t'
+        nonceLength = 48
+        encrypetedMacKeyLength = 512
+        tagLength = 32
 
-        tag = cripto.createTag(key, message)
-        
-        # Verify
-        h = hmac.HMAC(key, hashes.SHA256())
-        h.update(message.encode())
+        encryptedMacKey = request[-encrypetedMacKeyLength:]
+        tag = request[-(encrypetedMacKeyLength + tagLength):-encrypetedMacKeyLength]
+        message =  request[:-(encrypetedMacKeyLength + tagLength)]
+        nonce = request[:nonceLength]
 
-        try:
-            h.verify(tag)
-            isVerificationSuccesful = True
-        except InvalidSignature:
-            isVerificationSuccesful = False
+        macKey = cripto.decryptPacketWithPrivateKey(self.serverPrivateKey, encryptedMacKey)
 
-        self.assertTrue(isVerificationSuccesful)
+        # Test if it's correctly tagged
+        self.assertTrue(cripto.verifyTag(macKey, message, tag))
 
+        # Test if it generates different nonces
+        request2 = self.client.verifySession(sessionID)
+        nonce2 = request2[:nonceLength]
 
-    # Test: VotingClient.verifyMAC
-    def test_can_verify_mac_correctly(self):
-        
-        message = b"Oh sheep, here we go again"
-        key = b'S3cr3t'
-
-        # Create HMAC
-        h = hmac.HMAC(key, hashes.SHA256())
-        h.update(message)
-        tag = h.finalize()
-
-        # Verify
-        self.assertTrue(cripto.verifyTag(key, message, tag))
-
+        self.assertNotEqual(nonce, nonce2)

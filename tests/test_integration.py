@@ -24,3 +24,10 @@ class ClientServerIntegrationTest(unittest.TestCase):
                 with open('./tests/keys/server_test_keys.pub', 'rb') as serverPublicKey: 
                     return VotingClient(privateKey.read(), publicKey.read(), serverPublicKey.read())
 
+
+    def test_can_handle_a_verifySession_request(self):
+
+        pckg = self.client.verifySession("concurso melhor pizza da minha rua")
+        b, nonce, sid, mckey = self.server.verifySessionTag(pckg)
+
+        self.assertTrue(b)
