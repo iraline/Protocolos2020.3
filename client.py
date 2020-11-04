@@ -17,12 +17,14 @@ class VotingClient:
             serverPublicKey: A bytearray of a PEM File containing the server's public key
             password: A bytearray of the optional password that may have been used to encrypt the private key
     """
+
     def __init__(self, clientPrivateKey, clientPublicKey, serverPublicKey, clientPassword=None):
 
-        self.privateKey = serialization.load_pem_private_key(clientPrivateKey, password=clientPassword)
+        self.privateKey = serialization.load_pem_private_key(
+            clientPrivateKey, password=clientPassword)
         self.publicKey = serialization.load_pem_public_key(clientPublicKey)
-        self.serverPublicKey = serialization.load_pem_public_key(serverPublicKey)
-
+        self.serverPublicKey = serialization.load_pem_public_key(
+            serverPublicKey)
 
     """
         Sign message with Client's Private Key
@@ -33,10 +35,10 @@ class VotingClient:
         Returns:
             Message Signature
     """
+
     def signMessage(self, message):
         return cripto.signMessage(self.privateKey, message)
 
-    
     """
         Request a verification for a session result
 
@@ -45,6 +47,7 @@ class VotingClient:
         Returns:
             The packet that should be sent in bytearray format
     """
+
     def verifySession(self, sessionId):
 
         nonce = cripto.generateNonce()
@@ -52,6 +55,34 @@ class VotingClient:
         macKey = cripto.generateMACKey()
         tag = cripto.createTag(macKey, message)
         message = b"".join([message, tag])
-        encryptedMacKey = cripto.encryptWithPublicKey(self.serverPublicKey, macKey)
+        encryptedMacKey = cripto.encryptWithPublicKey(
+            self.serverPublicKey, macKey)
         message = b"".join([message, encryptedMacKey])
         return message
+
+    """              
+        Encrypt the login and password from the user with a symetric key. 
+        The symetric key is encrypted with the server`s publickey
+
+        Args:
+            self: Get the server's publicKey
+            login: User's login
+            password User's password
+            nonce: nonce received from server
+        Returns:
+            The packet that should be sent in bytearray format
+    """
+
+    def cryptCredentials(self, login, password, nonce):
+
+        symetricKey = cripto.generateSymmetricKey()
+        message = b"#".join([login, password, nonce])
+
+        encryptedMessage = cripto.encryptMessageWithKeyAES(
+            symetricKey, nonce, message)
+        encryptedKey = cripto.encryptWithPublicKey(
+            self.serverPublicKey, symetricKey)
+
+        pack = b"-".join([encryptedMessage, encryptedKey])
+
+        return pack
