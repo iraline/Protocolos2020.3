@@ -73,10 +73,10 @@ def encryptWithPublicKey(publicKey, message):
     Returns:
         Decrypted message
 """
-def decryptPacketWithPrivateKey(privateKey, packet):
+def decryptWithPrivateKey(privateKey, message):
         
     return privateKey.decrypt(
-        packet, 
+        message, 
         padding.OAEP(
             mgf=padding.MGF1(algorithm=hashes.SHA256()),
             algorithm=hashes.SHA256(),

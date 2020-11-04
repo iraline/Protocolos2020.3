@@ -31,3 +31,25 @@ class ClientServerIntegrationTest(unittest.TestCase):
         b, nonce, sid, mckey = self.server.verifySessionTag(pckg)
 
         self.assertTrue(b)
+
+
+    def test_client_can_create_a_session_request_and_server_create_it(self):
+
+        sessionName = 'Pizza'
+        candidates = ['Portuguesa', 'Calabresa', 'Carne de Sol']
+        sessionMode = 'maxVotes'
+        maxVotes = 10
+
+        createSessionRequest = self.client.createVotingSession(
+            sessionName,
+            candidates,
+            sessionMode,
+            maxVotes=maxVotes
+        )
+
+        self.assertEqual(0, len(self.server.sessions))
+
+        # Create Session
+        self.server.createVotingSession(createSessionRequest)
+        self.assertEqual(1, len(self.server.sessions))
+        self.assertTrue(sessionName in self.server.sessions)

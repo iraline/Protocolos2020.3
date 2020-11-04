@@ -4,6 +4,7 @@ from cryptography.hazmat.primitives import hashes, hmac
 from cryptography import exceptions
 import os
 import cripto
+import json
 
 
 class VotingClient:
@@ -55,3 +56,40 @@ class VotingClient:
         encryptedMacKey = cripto.encryptWithPublicKey(self.serverPublicKey, macKey)
         message = b"".join([message, encryptedMacKey])
         return message
+
+
+    """
+        Create a new voting session 
+
+        Args:
+            sessionName: Session Unique identifier
+            candidates: List of strings containing candidates names.
+            sessionMode: String that describes how this session will end. Either 'maxVotes' or 'duration'.
+            maxVotes: Votes needed to end session. Used if sessionMode equals 'maxVotes'.
+            duration: Time duration of the session in minutes. Used if sessionMode equals 'duration'.
+
+        Returns:
+            Packet containing a request for creating a new session.
+    """
+    def createVotingSession(self, sessionName, candidates, sessionMode, maxVotes=500, duration=60):
+
+        sessionInfo = {
+            'sessionName': sessionName,
+            'candidates': candidates,
+            'sessionMode': sessionMode
+        }
+
+        if sessionMode == 'maxVotes':
+            sessionInfo['maxVotes'] = maxVotes
+        elif sessionMode == 'duration':
+            sessionInfo['duration'] = duration
+        else:
+            raise ValueError('Invalid value for \'sessionMode\'. Choose one of \'maxVotes\' or \'duration\'.')
+
+        # Creating Packet 
+        hmacKey = cripto.generateMACKey()
+        sessionInfoAsBytes = json.dumps(sessionInfo).encode()
+        tag = cripto.createTag(hmacKey, sessionInfoAsBytes)        
+        encryptedHMACKey = cripto.encryptWithPublicKey(self.serverPublicKey, hmacKey)
+
+        return b''.join([sessionInfoAsBytes, tag, encryptedHMACKey])

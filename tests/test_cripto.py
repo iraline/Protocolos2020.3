@@ -121,7 +121,7 @@ class CriptTest(unittest.TestCase):
             )
         )
 
-        serverResponse = cripto.decryptPacketWithPrivateKey(self.serverPrivateKey, cipherText)
+        serverResponse = cripto.decryptWithPrivateKey(self.serverPrivateKey, cipherText)
         self.assertEqual(message, serverResponse)
 
 

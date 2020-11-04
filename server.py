@@ -37,7 +37,7 @@ class VotingServer:
             Decrypted packet
     """
     def decryptPacketWithServerPrivateKey(self, packet):
-        return cripto.decryptPacketWithPrivateKey(self.privateKey, packet) 
+        return cripto.decryptWithPrivateKey(self.privateKey, packet) 
 
 
     """
@@ -109,13 +109,13 @@ class VotingServer:
         schema = {
             'sessionName': {
                 'type': 'string', 
-                'minlength': 1, 
+                'empty': False, 
                 'maxlength': 200, 
                 'required': True
             },
             'candidates': {
                 'type': 'list', 
-                'minlength': 1, 
+                'empty': False, 
                 'schema': {'type': 'string'}, 
                 'required': True
             },
@@ -126,14 +126,16 @@ class VotingServer:
             },
             'maxVotes': {
                 'type': 'number',
-                'dependencies': {'sessionMode': ['maxVotes']},
+                'dependencies': {'sessionMode': 'maxVotes'},
                 'min': 1,
-                'required': True
+                'required': True,
+                'excludes': 'duration'
             },
             'duration': {
                 'type': 'number',
-                'dependencies': {'sessionMode': ['duration']},
-                'required': True
+                'dependencies': {'sessionMode': 'duration'},
+                'required': True,
+                'excludes': 'maxVotes'
             }
         }
 
@@ -169,7 +171,7 @@ class VotingServer:
         nonce = message[:nonceSz]
         sessionId = message[nonceSz:]
         
-        macKey = cripto.decryptPacketWithPrivateKey(self.privateKey, sentEncryptedMacKey)
+        macKey = cripto.decryptWithPrivateKey(self.privateKey, sentEncryptedMacKey)
         
         if cripto.verifyTag(macKey, message, sentTag):
             return True, nonce, sessionId, macKey
