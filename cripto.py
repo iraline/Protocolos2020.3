@@ -235,3 +235,47 @@ def signMessage(privateKey, message):
         ),
         hashes.SHA256()
     )
+
+
+"""
+    Generate a Symmetric Key.
+    
+    Returns:
+        A Symetric Key 
+"""
+def generateSymmetricKey():
+
+    return AESGCM.generate_key(bit_length=256)
+
+
+"""
+    Encrypt a message with a Key.
+    Args:
+        key: A key that will be used for encryption
+        nonce: Nonce used to encrypt the message in bytes
+        message: Message to be encrypted in bytes
+        
+    Returns:
+        Encrypted message
+"""
+def encryptMessageWithKeyAES(key, nonce, message):
+
+    aesgcm = AESGCM(key)
+
+    return aesgcm.encrypt(nonce, message, associated_data=None)
+
+"""
+    Decrypt a message with Symmetric Key.
+    Args:
+        key: A key that will be used for decryption
+        nonce: Nonce used to encrypt the message in bytes
+        message: Encrypted message in bytes
+        
+    Returns:
+        Message dencrypted 
+"""
+def decryptMessageWithKeyAES(key, nonce, message):
+
+    aesgcm = AESGCM(key)
+    return aesgcm.decrypt(nonce, message, associated_data=None)
+
