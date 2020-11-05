@@ -116,13 +116,21 @@ class VotingClient:
     def cryptCredentials(self, login, password, nonce):
 
         symetricKey = cripto.generateSymmetricKey()
-        message = b"#".join([login, password, nonce])
+       
+        message = {}
+        message['login'] = bytes(login, encoding= 'utf-8')
+        message['password'] = bytes(password, encoding= 'utf-8')
+        message['nonce'] = bytes(nonce, encoding= 'utf-8')
+
+        json_data = json.dumps(message)
 
         encryptedMessage = cripto.encryptMessageWithKeyAES(
-            symetricKey, nonce, message)
+            symetricKey, nonce, json_data)
         encryptedKey = cripto.encryptWithPublicKey(
             self.serverPublicKey, symetricKey)
 
-        pack = b"-".join([encryptedMessage, encryptedKey])
+        pack={}
+        pack['encryptedMessage'] = bytes(encryptedMessage, encoding= 'utf-8')
+        pack['encryptedKey'] = bytes(encryptedKey, encoding= 'utf-8')
 
-        return pack
+        return json.dumps(pack)
