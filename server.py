@@ -8,6 +8,7 @@ from exceptions import InvalidPacket
 import cripto
 import json
 from VotingSession import VotingSession
+from cerberus import Validator
 
 class VotingServer: 
 
@@ -36,7 +37,7 @@ class VotingServer:
             Decrypted packet
     """
     def decryptPacketWithServerPrivateKey(self, packet):
-        return cripto.decryptPacketWithPrivateKey(self.privateKey, packet) 
+        return cripto.decryptWithPrivateKey(self.privateKey, packet) 
 
 
     """
@@ -103,60 +104,50 @@ class VotingServer:
 
     """
     def validateVotingSessionOptions(self, sessionInfo):
+
+        # Create Session Packet
+        schema = {
+            'sessionName': {
+                'type': 'string', 
+                'empty': False, 
+                'maxlength': 200, 
+                'required': True
+            },
+            'candidates': {
+                'type': 'list', 
+                'empty': False, 
+                'schema': {'type': 'string'}, 
+                'required': True
+            },
+            'sessionMode': {
+                'type': 'string',
+                'allowed': ['maxVotes', 'duration'],
+                'required': True
+            },
+            'maxVotes': {
+                'type': 'number',
+                'dependencies': {'sessionMode': 'maxVotes'},
+                'min': 1,
+                'required': True,
+                'excludes': 'duration'
+            },
+            'duration': {
+                'type': 'number',
+                'dependencies': {'sessionMode': 'duration'},
+                'required': True,
+                'excludes': 'maxVotes'
+            }
+        }
+
+        # Validate if packet sent got all fields correctly 
+        validator = Validator(schema)
+        isPacketValid = validator.validate(sessionInfo)
+
+        isSessionNameAvailalable = sessionInfo['sessionName'] not in self.sessions
+
+        return isPacketValid and isSessionNameAvailalable
         
-        # Session Name
-        if 'sessionName' not in sessionInfo:
-            return False
-        
-        if not isinstance(sessionInfo['sessionName'], str):
-            return False
 
-        if sessionInfo['sessionName'] in self.sessions:
-            return False
-
-        # Canditates
-        if 'candidates' not in sessionInfo:
-            return False
-
-        if not isinstance(sessionInfo['candidates'], list):
-            return False
-    
-        if len(sessionInfo['candidates']) < 2:
-            return False
-
-        for canditate in sessionInfo['candidates']:
-            if not isinstance(canditate, str):
-                return False
-
-        # Session Finish Mode
-        if not 'sessionMode' in sessionInfo:
-            return False 
-        
-        if not isinstance(sessionInfo['sessionMode'], str):
-            return False
-
-        if sessionInfo['sessionMode'].lower() != 'maxvotes' and sessionInfo['sessionMode'].lower() != 'duration':
-            return False
-
-        if sessionInfo['sessionMode'] == 'maxVotes':
-            if 'maxVotes' not in sessionInfo:
-                return False
-            if not isinstance(sessionInfo['maxVotes'], int):
-                return False
-            if not sessionInfo['maxVotes'] > 0:
-                return False
-
-        if sessionInfo['sessionMode'] == 'duration':
-            if 'duration' not in sessionInfo:
-                return False
-            if not isinstance(sessionInfo['duration'], int):
-                return False
-            if not sessionInfo['duration'] > 0:
-                return False
-
-        return True
-
-        
     """
         Verify if the tag sent from client from the verify session package is valid
 
@@ -180,7 +171,7 @@ class VotingServer:
         nonce = message[:nonceSz]
         sessionId = message[nonceSz:].decode()
         
-        macKey = cripto.decryptPacketWithPrivateKey(self.privateKey, sentEncryptedMacKey)
+        macKey = cripto.decryptWithPrivateKey(self.privateKey, sentEncryptedMacKey)
         
         if cripto.verifyTag(macKey, message, sentTag):
             return True, nonce, sessionId, macKey

@@ -72,7 +72,7 @@ class VotingClientTest(unittest.TestCase):
         message =  request[:-(encrypetedMacKeyLength + tagLength)]
         nonce = request[:nonceLength]
 
-        macKey = cripto.decryptPacketWithPrivateKey(self.serverPrivateKey, encryptedMacKey)
+        macKey = cripto.decryptWithPrivateKey(self.serverPrivateKey, encryptedMacKey)
 
         # Test if it's correctly tagged
         self.assertTrue(cripto.verifyTag(macKey, message, tag))
@@ -82,3 +82,30 @@ class VotingClientTest(unittest.TestCase):
         nonce2 = request2[:nonceLength]
 
         self.assertNotEqual(nonce, nonce2)
+
+
+    # Test: VotingClient.createVotingSession
+    def test_can_make_a_create_session_request(self):
+
+        sessionName = 'Decidir o formato da Terra'
+        candidates = ['bola', 'pizza']
+        sessionMode = 'maxVotes'
+        maxVotes = 1
+
+        requestPacket = self.client.createVotingSession(
+            sessionName,
+            candidates,
+            sessionMode,
+            maxVotes=maxVotes
+        )
+
+        keyLength = 512
+        tagLength = 32
+
+        encryptedKey = requestPacket[-keyLength:]
+        tag = requestPacket[-(keyLength + tagLength):-keyLength]
+        message = requestPacket[:-(keyLength + tagLength)]
+
+        hmacKey = cripto.decryptWithPrivateKey(self.serverPrivateKey, encryptedKey)
+        self.assertTrue(cripto.verifyTag(hmacKey, message, tag))
+
