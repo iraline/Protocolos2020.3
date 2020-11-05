@@ -169,7 +169,7 @@ class VotingServer:
         sentEncryptedMacKey = package[-encryptedMacKeySz:]
 
         nonce = message[:nonceSz]
-        sessionId = message[nonceSz:]
+        sessionId = message[nonceSz:].decode()
         
         macKey = cripto.decryptWithPrivateKey(self.privateKey, sentEncryptedMacKey)
         
@@ -177,3 +177,75 @@ class VotingServer:
             return True, nonce, sessionId, macKey
         else:
             return False, nonce, sessionId, macKey
+
+
+    """
+    Returns session result if the end condition is true
+
+    Args:
+        The packet sent from the client method "client.verifySession()"
+    Retuns:
+        The sorted list in a decrescent order of a tuple of candidates and number of votes
+    """
+    def sendSessionResult(self, packet):
+        status, nonce, sessionId, macKey = self.verifySessionTag(packet)
+
+        if status == False:
+            # In this case we should return a packet signaling that the tag was invalid
+            message = b"".join([b"ERROR", nonce])
+            message = b"".join([message, b"Invalid tag"])
+            InvalidTagPacket = "".join([message, cripto.createTag(macKey, message)])
+            return InvalidTagPacket
+
+        elif not sessionId in self.sessions:
+            print("sei la")
+
+        else:
+            if self.sessions[sessionId].sessionMode.lower() == "maxvotes":
+                # Hence, we must check if the maximum number of votes has been reached
+
+                votes = self.sessions[sessionId].candidates.values()
+                numVotes = sum(votes)
+
+                if numVotes >= self.sessions[sessionId].maxVotes:
+                    # Therefore, we must send the packet with the result
+
+                    dumpedSession = json.dumps(self.sessions[sessionId].__dict__)
+                    message = b"".join([nonce, dumpedSession.encode()])
+                    tag = cripto.createTag(macKey, message)
+                    sessionResultPacket = b"".join([message, tag])
+
+                    return sessionResultPacket
+            
+                else:
+                    # Therefore, we must send the packet signaling that the session isn't over yet
+                    message = b"".join([b"ERROR", nonce])
+                    message = b"".join([message, b"Unfinished session"])
+                    UnfinishedSessionPacket = b"".join([message, cripto.createTag(macKey, message)])
+                    return UnfinishedSessionPacket
+
+        
+            else:
+                
+                #-----------------------------------------#
+                # THIS PART STILL NEEDS TO BE IMPLEMENTED #
+                #-----------------------------------------#
+                
+                isSessionDurationOver = False 
+
+                if isSessionDurationOver:
+                    # Therefore, we must send the packet with the result
+
+                    dumpedSession = json.dumps(self.sessions[sessionId].__dict__)
+                    message = b"".join([nonce, dumpedSession.encode()])
+                    tag = cripto.createTag(macKey, message)
+                    sessionResultPacket = b"".join([message, tag])
+
+                    return sessionResultPacket
+                
+                else:
+                    # Therefore, we must send the packet signaling that the session isn't over yet
+                    message = b"".join([b"ERROR", nonce])
+                    message = b"".join([message, b"Unfinished session"])
+                    UnfinishedSessionPacket = b"".join([message, cripto.createTag(macKey, message)])
+                    return UnfinishedSessionPacket

@@ -12,12 +12,15 @@ class VotingSession:
             duration: If sessionMode is time based, how long session will last
             maxVotes: If sessionMode is vote count based, how many votes before ending voting session
     """
-    def __init__(self, sessionName, candidates, sessionMode, duration=None, maxVotes=None):
+    def __init__(self, sessionName, candidates, sessionMode, duration=None, maxVotes=None, candidatesFormat="List"):
 
         self.id = sessionName
 
         # Dictionary for counting votes for each candidate
-        self.candidates = { candidate:0 for candidate in candidates }
+        if candidatesFormat == "Dictionary":
+            self.candidates = candidates
+        else:
+            self.candidates = { candidate:0 for candidate in candidates }
 
         self.sessionMode = sessionMode
         self.duration = duration
