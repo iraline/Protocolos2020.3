@@ -207,3 +207,41 @@ class VotingClient:
         pack['encryptedKey'] = bytes(encryptedKey, encoding= 'utf-8')
 
         return json.dumps(pack)
+    
+    """              
+        Encrypt the "id_client" with a symetric key, sign this message with your private key
+        and send a generate MasterKey encrypted with the server's public key
+    
+        Args:
+            self: Get the server's publicKey and client's privateKey
+            id_client: User's uniqueidentification. 
+        Returns:
+            The packet that should be sent in bytearray format
+    """
+
+    def requestRegister(self, id_client):
+
+        nonce = cripto.generateNonce()
+        msKey = cripto.generateMasterKey()
+     
+        signId = cripto.signMessage(self.privateKey,id_client)
+
+        symmetricHmac = cripto.generateKeysWithMS(msKey,nonce)
+        
+        symmetricKey = symmetricHmac[0]
+      
+        message = {}
+        message['message'] = id_client #bytes(id_client, encoding= 'utf-8')
+        message['hashMessage'] = signId #bytes(signId, encoding= 'utf-8')
+        json_messageEncrypted = json.dumps(message)
+
+        encryptedMessage = cripto.encryptMessageWithKeyAES( 
+            symmetricKey, nonce, json_messageEncrypted)
+        criptedMsKey = cripto.encryptWithPublicKey(self.serverPublicKey,msKey)
+
+        pack={}
+        pack['encryptedMessage'] = encryptedMessage
+        pack['encryptedKey'] = criptedMsKey
+        pack['nonce'] = nonce
+
+        return json.dumps(pack)

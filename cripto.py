@@ -189,7 +189,7 @@ def verifyTag(key, sentMessage, sentTag):
         masterKey: A 32 byte key in byte format
         salt: A 16 byte salt in byte format
     Returns:
-        Two 32 byte keys
+        Two 32 byte keys[Symmetric, HMAC]
 """
 
 
@@ -304,7 +304,7 @@ def encryptMessageWithKeyAES(key, nonce, message):
         message: Encrypted message in bytes
         
     Returns:
-        Message dencrypted 
+        Message decrypted 
 """
 def decryptMessageWithKeyAES(key, nonce, message):
 
