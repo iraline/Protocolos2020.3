@@ -14,7 +14,7 @@ from cryptography import exceptions
     Generate nonce
 
     Returns
-        48-byte-long-random bytearray to be used as nonce
+        16-byte-long-random bytearray to be used as nonce
 """
 
 
