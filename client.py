@@ -72,7 +72,7 @@ class VotingClient:
             Or a string signaling an error, 
             Or a session object
     """
-    def recieveSessionResult(self, packet, lastNonce, HMACKey):
+    def receiveSessionResult(self, packet, lastNonce, HMACKey):
         
         errorSz = 5
         nonceSz = 48

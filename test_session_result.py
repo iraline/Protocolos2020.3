@@ -21,7 +21,7 @@ testClient = VotingClient(privK, pubK, svPubK)
 print("Primeiro teste")
 fstPacket, nonce, HMACKey = testClient.verifySession("concurso melhor pizza da minha rua")
 sndPacket = testServer.sendSessionResult(fstPacket)
-print(testClient.recieveSessionResult(sndPacket, nonce, HMACKey))
+print(testClient.receiveSessionResult(sndPacket, nonce, HMACKey))
 
 # Teste quanda a quantidade de votos maxima foi atingida
 print("")
@@ -30,7 +30,7 @@ testServer.sessions["concurso melhor pizza da minha rua"].candidates["julio"] = 
 testServer.sessions["concurso melhor pizza da minha rua"].candidates["erick jacquin"] = 9
 fstPacket, nonce, HMACKey = testClient.verifySession("concurso melhor pizza da minha rua")
 sndPacket = testServer.sendSessionResult(fstPacket)
-requestedSession = testClient.recieveSessionResult(sndPacket, nonce, HMACKey)
+requestedSession = testClient.receiveSessionResult(sndPacket, nonce, HMACKey)
 
 
 print(requestedSession.candidates)
