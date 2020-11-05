@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import serialization
-from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography import exceptions
 
 
@@ -16,8 +16,10 @@ from cryptography import exceptions
     Returns
         48-byte-long-random bytearray to be used as nonce
 """
+
+
 def generateNonce():
-    return secrets.token_bytes(48)
+    return secrets.token_bytes(16)
 
 
 """
@@ -32,6 +34,8 @@ def generateNonce():
     Returns:
         Decrypted packet
 """
+
+
 def decryptPacketWithSymmetricKey(key, nonce, packet):
     return AESGCM(key).decrypt(nonce, packet, associated_data=None)
 
@@ -49,6 +53,8 @@ def decryptPacketWithSymmetricKey(key, nonce, packet):
     Returns:
         Encrypted message
 """
+
+
 def encryptWithPublicKey(publicKey, message):
 
     return publicKey.encrypt(
@@ -73,16 +79,18 @@ def encryptWithPublicKey(publicKey, message):
     Returns:
         Decrypted message
 """
+
+
 def decryptWithPrivateKey(privateKey, message):
-        
+
     return privateKey.decrypt(
-        message, 
+        message,
         padding.OAEP(
             mgf=padding.MGF1(algorithm=hashes.SHA256()),
             algorithm=hashes.SHA256(),
             label=None
+        )
     )
-)
 
 
 """
@@ -96,13 +104,15 @@ def decryptWithPrivateKey(privateKey, message):
     Returns:
         Wheter it was signed by the corresponding Private Key or not.
 """
+
+
 def verifySignature(publicKey, message, signature):
-    
+
     matchesSignature = True
 
     # Load Client's Public Key Object
     publicKey = serialization.load_pem_public_key(publicKey)
-    
+
     try:
         publicKey.verify(
             signature,
@@ -115,8 +125,9 @@ def verifySignature(publicKey, message, signature):
         )
     except exceptions.InvalidSignature:
         matchesSignature = False
-    
+
     return matchesSignature
+
 
 """
     Apply a message authentication code to a message using a key. To create the tag
@@ -129,16 +140,18 @@ def verifySignature(publicKey, message, signature):
     Returns:
         The tag, A.K.A. MAC (Message Authentication Code)
 """
+
+
 def createTag(key, message):
     h = hmac.HMAC(key, hashes.SHA256())
-    
+
     if isinstance(message, str):
         message = str.encode(message)
-    
+
     h.update(message)
-    
+
     # return b"".join([message, h.finalize()])  # to get the message with the MAC appended
-    return h.finalize()           # to get only the MAC  
+    return h.finalize()           # to get only the MAC
 
 
 """
@@ -153,12 +166,14 @@ def createTag(key, message):
     Returns:
         It returns True if the MAC is valid or False if it isn't
 """
+
+
 def verifyTag(key, sentMessage, sentTag):
     h = hmac.HMAC(key, hashes.SHA256())
-    
+
     messageAsBytes = sentMessage
     h.update(messageAsBytes)
-    
+
     try:
         h.verify(sentTag)
         return True
@@ -176,15 +191,18 @@ def verifyTag(key, sentMessage, sentTag):
     Returns:
         Two 32 byte keys
 """
+
+
 def generateKeysWithMS(masterKey, salt):
     hkdf = HKDF(
         algorithm=hashes.SHA256(),
         length=64,
         salt=salt,
-        info= b"",
+        info=b"",
     )
     bigKey = hkdf.derive(masterKey)
     return bigKey[:(len(bigKey)//2)], bigKey[(len(bigKey)//2):]
+
 
 """
     Generate a random master key of 256 bits (32 Bytes)
@@ -192,6 +210,8 @@ def generateKeysWithMS(masterKey, salt):
     Returns:
         It returns a master key in byte format
 """
+
+
 def generateMasterKey():
     return os.urandom(32)
 
@@ -202,6 +222,8 @@ def generateMasterKey():
     Returns:
         It returns a key in byte format
 """
+
+
 def generateMACKey():
     return os.urandom(32)
 
@@ -212,6 +234,8 @@ def generateMACKey():
     Returns:
         Salt
 """
+
+
 def generateSalt():
     return os.urandom(16)
 
@@ -225,8 +249,10 @@ def generateSalt():
     Returns:
         Message Signature
 """
+
+
 def signMessage(privateKey, message):
-    
+
     return privateKey.sign(
         message,
         padding.PSS(
@@ -243,9 +269,11 @@ def signMessage(privateKey, message):
     Returns:
         A Symetric Key 
 """
+
+
 def generateSymmetricKey():
 
-    return AESGCM.generate_key(bit_length=256)
+    return os.urandom(32)
 
 
 """
@@ -258,11 +286,15 @@ def generateSymmetricKey():
     Returns:
         Encrypted message
 """
+
+
 def encryptMessageWithKeyAES(key, nonce, message):
 
-    aesgcm = AESGCM(key)
+    cipher = Cipher(algorithms.AES(key), modes.CTR(nonce))
+    encryptor = cipher.encryptor()
 
-    return aesgcm.encrypt(nonce, message, associated_data=None)
+    return encryptor.update(message) + encryptor.finalize()
+
 
 """
     Decrypt a message with Symmetric Key.
@@ -276,6 +308,7 @@ def encryptMessageWithKeyAES(key, nonce, message):
 """
 def decryptMessageWithKeyAES(key, nonce, message):
 
-    aesgcm = AESGCM(key)
-    return aesgcm.decrypt(nonce, message, associated_data=None)
+    cipher = Cipher(algorithms.AES(key), modes.CTR(nonce))
+    decryptor = cipher.decryptor()
 
+    return decryptor.update(message) + decryptor.finalize()
