@@ -28,7 +28,7 @@ class VotingServer:
             privateKey, password=password)
         self.publicKey = serialization.load_pem_public_key(publicKey)
         self.sessions = {}
-        self.users ={}
+        self.users = {}
 
     """
         Decrypt packets encrypted with the Server's Public Key
@@ -264,19 +264,6 @@ class VotingServer:
        to create an account in the system.
     
         Args:
-            lists: The list with the id_client and publicKey from the users that are allowed to create an account 
-            value: id_client that you wanna check
-        Returns:
-            Index that this values are
-    """
-    def searchIndex (self,lists, value):
-        return [(lists.index(x), x.index(value)) for x in lists if value in x]
-
-    """              
-       Check if the id_client really exists in the system. If exist, it's allowed 
-       to create an account in the system.
-    
-        Args:
             self: Get the server's privateKey and a list of possible clients 
             package: Package generate for the requestRegister
         Returns:
@@ -285,48 +272,47 @@ class VotingServer:
 
     def checkRequestRegister(self, package):
 
-        #Decrypt package
-        jsonPack =  json.loads(package)
+        # Decrypt package
+        jsonPack = json.loads(package)
 
-        encryptedMessage = jsonPack['encryptedMessage'] 
-        encryptedKey = jsonPack['encryptedKey'] 
-        nonce = jsonPack['nonce'] 
+        encryptedMessage = jsonPack['encryptedMessage']
+        encryptedKey = jsonPack['encryptedKey']
+        nonce = jsonPack['nonce']
 
-        msKey = cripto.decryptWithPrivateKey(self.privateKey,encryptedKey)
-        derivateMs = cripto.generateKeysWithMS(msKey,nonce)
+        msKey = cripto.decryptWithPrivateKey(self.privateKey, encryptedKey)
+        derivateMs = cripto.generateKeysWithMS(msKey, nonce)
         symmetricKey = derivateMs[0]
-        macTag       = derivateMs[1]
-        decryptedMessage = cripto.decryptMessageWithKeyAES(symmetricKey,nonce,encryptedMessage)
+        macTag = derivateMs[1]
+        decryptedMessage = cripto.decryptMessageWithKeyAES(
+            symmetricKey, nonce, encryptedMessage)
 
-        #Get the id_client
+        # Get the id_client
         id_client = decryptedMessage['message']
-        hashMessage = decryptedMessage['hashMessage']   
+        hashMessage = decryptedMessage['hashMessage']
 
         validPackage = False
 
-        #Checks if the id_client is allowed
+        # Checks if the id_client is allowed
         for value in self.users:
 
             if value == id_client:
 
-                #Checks that the package has not been changed
-                validPackage = cripto.verifySignature(self.users,hashMessage,self.users[value])
-                
+                # Checks that the package has not been changed
+                validPackage = cripto.verifySignature(
+                    self.users, hashMessage, self.users[value])
 
-        #Prepare the package to be sent
+        # Prepare the package to be sent
         message = {}
         message['status'] = validPackage
         message['nonce'] = nonce
         json_messageEncrypted = json.dumps(message)
 
-        encryptedMessage = cripto.encryptMessageWithKeyAES( 
+        encryptedMessage = cripto.encryptMessageWithKeyAES(
             symmetricKey, nonce, json_messageEncrypted)
-        messageHmac = cripto.createTag(macTag,encryptedMessage)
+        messageHmac = cripto.createTag(macTag, encryptedMessage)
 
         pack = {}
         pack['message'] = encryptedMessage
         pack['tag'] = messageHmac
 
         return json.dumps(pack)
-
-
