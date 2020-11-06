@@ -78,7 +78,7 @@ class VotingClient:
     def receiveSessionResult(self, packet, lastNonce, HMACKey):
         
         errorSz = 5
-        nonceSz = 48
+        nonceSz = 16
         tagSz = 32
         invalidTagSz = len("Invalid tag")
 

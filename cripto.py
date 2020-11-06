@@ -4,7 +4,6 @@ import cripto
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography import exceptions
@@ -17,27 +16,8 @@ from cryptography import exceptions
         16-byte-long-random bytearray to be used as nonce
 """
 
-
 def generateNonce():
     return secrets.token_bytes(16)
-
-
-"""
-    Decrypt packet encrypted with given symmetric Key.
-    It's expected for the packet to have been encrypted with AES256 and GCM mode
-   
-    Args:
-        key: Symmetric key used in encryption
-        nonce: Bytearray used as nonce. Never reuse the same (nonce, key) pair
-        packet: Encrypted packet
-    
-    Returns:
-        Decrypted packet
-"""
-
-
-def decryptPacketWithSymmetricKey(key, nonce, packet):
-    return AESGCM(key).decrypt(nonce, packet, associated_data=None)
 
 
 """
@@ -53,7 +33,6 @@ def decryptPacketWithSymmetricKey(key, nonce, packet):
     Returns:
         Encrypted message
 """
-
 
 def encryptWithPublicKey(publicKey, message):
 
@@ -179,6 +158,40 @@ def verifyTag(key, sentMessage, sentTag):
         return True
     except exceptions.InvalidSignature:
         return False
+
+
+"""
+    Apply a SHA256 function to create a Digest of the message.
+    
+    Args: 
+        message: A bytearray to be digested
+
+    Return:
+        A message digest
+"""
+def createDigest(message):
+
+    digest = hashes.Hash(hashes.SHA256())
+    
+    if isinstance(message, str):
+        message = message.encode()
+
+    digest.update(message)
+    return digest.finalize()
+
+"""
+    Verify if the message's digest matches the given tag 
+    
+    Args: 
+        message: A bytearray to be checked against the tag
+        tag: A bytearray representing the tag to be verified against
+
+    Return:
+        Wheter the tag matches or not the digest.
+"""
+def verifyDigest(message, tag):
+    
+    return tag == createDigest(message)
 
 
 """

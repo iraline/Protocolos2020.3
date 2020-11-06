@@ -1,5 +1,6 @@
 import unittest
 from server import VotingServer
+from VotingSession import VotingSession
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -85,3 +86,36 @@ class VotingServerTest(unittest.TestCase):
         with self.assertRaises(InvalidPacket):
             self.server.createVotingSession(packet) 
 
+
+    def test_can_correctly_handle_a_voting_request(self):
+
+        # Create Session
+        pizzaSession = VotingSession(
+            sessionName='pizza',
+            candidates=['Calabresa', 'Mussarela'],
+            sessionMode='maxVotes',
+            maxVotes=20
+        )
+
+        self.server.sessions['pizza'] = pizzaSession
+
+        # Create Voting Request
+        votingInfo = {
+            'sessionID': 'pizza',
+            'vote': '1',
+            'token': 'lalala'
+        }
+        votingInfoAsBytes = json.dumps(votingInfo).encode()
+        digest = cripto.createDigest(votingInfoAsBytes)
+        
+
+        symKey = cripto.generateSymmetricKey()
+        nonce = cripto.generateNonce()
+        encryptedMessage = cripto.encryptMessageWithKeyAES(symKey, nonce, votingInfoAsBytes + digest)
+        
+        encryptedKey = cripto.encryptWithPublicKey(self.serverPublicKey, symKey)
+
+        packet = b"".join([encryptedMessage, nonce, encryptedKey])
+
+        # Send packet to server
+        self.server.computeVoteRequest(packet)

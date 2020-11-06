@@ -151,17 +151,20 @@ class VotingServer:
 
         return isPacketValid and isSessionNameAvailalable
 
+
     """
         Verify if the tag sent from client from the verify session package is valid
 
         Args:
             The package sent from the client method "client.verifySession()"
+
         Returns:
             True if the tag is valid, else false, the nonce used, the sessionId and the mac key
     """
 
     def verifySessionTag(self, package):
-        nonceSz = 48
+        
+        nonceSz = 16
         tagSz = 32
         encryptedMacKeySz = 512
 
@@ -182,6 +185,7 @@ class VotingServer:
             return True, nonce, sessionId, macKey
         else:
             return False, nonce, sessionId, macKey
+
 
     """
     Returns session result if the end condition is true
@@ -217,7 +221,8 @@ class VotingServer:
                     # Therefore, we must send the packet with the result
 
                     dumpedSession = json.dumps(
-                        self.sessions[sessionId].__dict__)
+                        self.sessions[sessionId].__dict__
+                    )
                     message = b"".join([nonce, dumpedSession.encode()])
                     tag = cripto.createTag(macKey, message)
                     sessionResultPacket = b"".join([message, tag])
@@ -266,6 +271,7 @@ class VotingServer:
         Args:
             self: Get the server's privateKey and a list of possible clients 
             package: Package generate for the requestRegister
+
         Returns:
             The packet that should be sent in bytearray format
     """
@@ -299,7 +305,8 @@ class VotingServer:
 
                 # Checks that the package has not been changed
                 validPackage = cripto.verifySignature(
-                    self.users, hashMessage, self.users[value])
+                    self.users, hashMessage, self.users[value]
+                )
 
         # Prepare the package to be sent
         message = {}
@@ -316,3 +323,112 @@ class VotingServer:
         pack['tag'] = messageHmac
 
         return json.dumps(pack)
+
+    
+    """
+        Extract info from a Voting Request Packet
+
+        Args:
+            packet: packet sent by the client containing its vote.
+
+        Return:
+            Voting Info sent by client
+    """
+    def handleVotingRequestPacket(self, packet):
+
+        keyLength = 512
+        digestLength = 32
+        nonceLength = 16
+
+        if len(packet) <= keyLength + digestLength + nonceLength:
+            raise InvalidPacket('Voting Request has length smaller than minimun possible packet')
+    
+        # Parse packet
+        encryptedKey = packet[-keyLength:]
+        packet = packet[:-keyLength]
+
+        nonce = packet[-nonceLength:]
+        packet = packet[:-nonceLength]
+
+        encryptedMessage = packet
+
+        # Decript and verify intregrity
+        symKey = self.decryptPacketWithServerPrivateKey(encryptedKey)
+        message = cripto.decryptMessageWithKeyAES(symKey, nonce, encryptedMessage)
+
+        digest = message[-digestLength:]
+        message = message[:-digestLength]
+
+        if not cripto.verifyDigest(message, digest):
+            raise InvalidPacket("Integrity verification failed")
+
+        votingInfoAsBytes = message
+        votingInfo = json.loads(votingInfoAsBytes.decode())
+
+        return votingInfo
+
+
+    """
+        Validates if sent Voting packet contains a valid format
+
+        Args:
+            votingInfo: Dictionary if voting information sent by client
+
+        Returns:
+            If voting info is valid
+    """
+    def validateVotingInfo(self, votingInfo):
+
+        schema = {
+            'sessionID': {'type': 'string', 'required': True},
+            'vote': {'type': 'string', 'required': True},
+            'token': {'type': 'string', 'required': True}
+        } 
+
+        # Validate if packet sent got all fields correctly 
+        validator = Validator(schema)
+        
+        isPacketValid = validator.validate(votingInfo)
+        if not isPacketValid:
+            return False
+
+        session = self.sessions.get(votingInfo['sessionID'], None)
+        if not session:
+            return False
+
+        # TODO: VALIDATE USER TOKEN
+
+        return True
+
+
+    """
+        Validate and Compute Vote Request
+
+        Args:
+            packet: Voting Request packet sent by client
+
+        Returns:
+            Computes client vote in that session.
+    """
+    def computeVoteRequest(self, packet):
+
+        votingInfo = self.handleVotingRequestPacket(packet)
+        
+        if not self.validateVotingInfo(votingInfo):
+            raise InvalidPacket
+        
+        sessionID = votingInfo['sessionID']
+        session = self.sessions[sessionID]
+
+        # TODO: GET CLIENT INFO 
+
+        # TODO: Compute Voting
+        # candidate = votingInfo['candidate']
+        # hasSuccesfullyVoted = session.vote(userID, votingInfo['candidate'])
+
+        pass
+
+        
+
+        
+

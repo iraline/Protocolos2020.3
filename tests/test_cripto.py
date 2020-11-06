@@ -3,7 +3,7 @@ import cripto
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 class CriptTest(unittest.TestCase):
 
@@ -78,13 +78,14 @@ class CriptTest(unittest.TestCase):
         
         # Generate Nonce and Key
         nonce = cripto.generateNonce()
-        key = AESGCM.generate_key(bit_length=256)
-        aesgcm = AESGCM(key)
+        key = cripto.generateSymmetricKey()
+        cipher = Cipher(algorithms.AES(key), modes.CTR(nonce))
+        encryptor = cipher.encryptor()
 
         # Encrypt message
-        cipherText = aesgcm.encrypt(nonce, message, associated_data=None)
+        cipherText = encryptor.update(message) + encryptor.finalize()
 
-        self.assertEqual(message, cripto.decryptPacketWithSymmetricKey(key, nonce, cipherText))
+        self.assertEqual(message, cripto.decryptMessageWithKeyAES(key, nonce, cipherText))
 
 
     def test_can_encrypt_message_with_public_key(self):
@@ -104,8 +105,6 @@ class CriptTest(unittest.TestCase):
         )
 
         self.assertEqual(message, decryptedText)
-
-
 
 
     def test_can_decrypt_message_encrypted_with_public_key(self):

@@ -61,16 +61,21 @@ class VotingClientTest(unittest.TestCase):
     def test_can_request_a_session_verification(self):
 
         sessionID = 'mySessionID'
-        request = self.client.verifySession(sessionID)
+        request, _ , _ = self.client.verifySession(sessionID)
 
-        nonceLength = 48
+        # Parse Packet
         encrypetedMacKeyLength = 512
         tagLength = 32
+        nonceLength = 16
 
         encryptedMacKey = request[-encrypetedMacKeyLength:]
-        tag = request[-(encrypetedMacKeyLength + tagLength):-encrypetedMacKeyLength]
-        message =  request[:-(encrypetedMacKeyLength + tagLength)]
-        nonce = request[:nonceLength]
+        request = request[:-encrypetedMacKeyLength]
+
+        tag = request[-tagLength:]
+        request = request[:-tagLength]
+
+        message =  request
+        nonce = message[:nonceLength]
 
         macKey = cripto.decryptWithPrivateKey(self.serverPrivateKey, encryptedMacKey)
 
