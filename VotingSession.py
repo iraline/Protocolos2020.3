@@ -49,7 +49,7 @@ class VotingSession:
         if candidate not in self.candidates:
             return False
 
-        if self.usersThatVoted.contains(userID):
+        if userID in self.usersThatVoted:
             return False
         
         if self.hasFinished():
@@ -57,7 +57,7 @@ class VotingSession:
 
         # Adding voting
         self.candidates[candidate] += 1
-        self.usersThatVoted.push(userID)
+        self.usersThatVoted.append(userID)
 
         return True
 

@@ -157,9 +157,9 @@ class VotingClient:
             'sessionMode': sessionMode
         }
 
-        if sessionMode == 'maxVotes':
+        if sessionMode.lower() == 'maxvotes':
             sessionInfo['maxVotes'] = maxVotes
-        elif sessionMode == 'duration':
+        elif sessionMode.lower() == 'duration':
             sessionInfo['duration'] = duration
         else:
             raise ValueError('Invalid value for \'sessionMode\'. Choose one of \'maxVotes\' or \'duration\'.')
