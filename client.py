@@ -193,7 +193,7 @@ class VotingClient:
         message = {}
         message['login'] = bytes(login, encoding= 'utf-8')
         message['password'] = bytes(password, encoding= 'utf-8')
-        message['nonce'] = bytes(nonce, encoding= 'utf-8')
+        
 
         json_data = json.dumps(message)
 
@@ -205,6 +205,7 @@ class VotingClient:
         pack={}
         pack['encryptedMessage'] = bytes(encryptedMessage, encoding= 'utf-8')
         pack['encryptedKey'] = bytes(encryptedKey, encoding= 'utf-8')
+        pack['nonce'] = nonce
 
         return json.dumps(pack)
     

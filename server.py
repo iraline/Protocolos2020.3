@@ -428,7 +428,71 @@ class VotingServer:
 
         pass
 
+    """              
+       Check if the credentials sent is valid or not.
+    
+        Args:
+            self: Get the server's privateKey  
+            userList: Get the list with users and passwords in the system
+            package: Json package generate for the cryptCredentials
+
+        Returns:
+            Encrypted json message package with status, authToken and nonce
+
+    """
+
+    def checkRequestLogin(self, usersList, package):
+
+        # Decrypt package
+        jsonPack = json.loads(package)
+
+        encryptedMessage = jsonPack['encryptedMessage']
+        encryptedKey = jsonPack['encryptedKey']
+        nonce = jsonPack['nonce']
         
+        symmetricKey = cripto.decryptWithPrivateKey(self.privateKey,encryptedKey)
+        decryptedMessage = cripto.decryptMessageWithKeyAES(symmetricKey,nonce,encryptedMessage)
+
+        jsonMessage =  json.loads(decryptedMessage)
+
+        # Getting the parameters from  the message
+        login = jsonMessage['login']
+        password = jsonMessage['password']
+
+        validUser = 0
+
+        #Check if the credentials are the same
+        for value in usersList:
+
+            if value == login:
+
+                if usersList[value] == password:
+                    #############################################
+                    #   GENERATE AUTHTOKEN
+                    #############################################
+                    validUser = 1
+                    break
+        
+        message = {}
+
+        if (validUser):
+            message['status'] = b"Sucesso"
+            message['nonce'] = nonce
+            message['authToken'] = b"Token"
+        else:
+            message['status'] = b"Invalido"
+            message['nonce'] = nonce
+        
+        jsonMessage = json.dumps(message)
+        signMessage = cripto.signMessage(self.privateKey, jsonMessage)
+
+        messagePreJson = {}
+        messagePreJson['message'] = jsonMessage
+        messagePreJson['signMessage'] = signMessage
+        messageJson = json.dumps(messagePreJson)
+
+        #Cript Message
+        return cripto.encryptMessageWithKeyAES(symmetricKey,nonce,messageJson)
 
         
 
