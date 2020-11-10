@@ -1,6 +1,8 @@
 from client import VotingClient
 from server import VotingServer
 import VotingSession
+import datetime
+import time
 
 candidatos = ["julio", "divanilson", "erick jacquin", "caio", "xuxa"]
 
@@ -13,27 +15,54 @@ pubK = open('./tests/keys/client_test_keys.pub', 'rb').read()
 svPubK = open('./tests/keys/server_test_keys.pub', 'rb').read()
 svPrivK = open('./tests/keys/server_test_keys.pem', 'rb').read()
 
-userPubKeysFilePath = 'usersPubKeys.json'
-userInfoFilePath = None
-
-testServer = VotingServer(userPubKeysFilePath, userInfoFilePath, svPrivK, svPubK)
+testServer = VotingServer(None, None, svPrivK, svPubK)
 testServer.sessions["concurso melhor pizza da minha rua"] = VotingSession.VotingSession("concurso melhor pizza da minha rua", candidatos, "maxVotes", maxVotes=19)
 testClient = VotingClient(privK, pubK, svPubK)
 
 # Teste quando a quantidade de votos desejada ainda não foi atingida
-print("Primeiro teste")
+print("Teste maxVotes nao atingido")
 fstPacket, nonce, HMACKey = testClient.verifySession("concurso melhor pizza da minha rua")
 sndPacket = testServer.sendSessionResult(fstPacket)
-print(testClient.receiveSessionResult(sndPacket, nonce, HMACKey))
+status, sndRet = testClient.receiveSessionResult(sndPacket, nonce, HMACKey)
+if status <= 0:
+    print(sndRet)
+else:
+    print(sndRet.candidates)
 
-# Teste quanda a quantidade de votos maxima foi atingida
+# Teste quando a quantidade de votos maxima foi atingida
 print("")
-print("Segundo teste")
+print("Teste maxVotes atingido")
 testServer.sessions["concurso melhor pizza da minha rua"].candidates["julio"] = 10
 testServer.sessions["concurso melhor pizza da minha rua"].candidates["erick jacquin"] = 9
 fstPacket, nonce, HMACKey = testClient.verifySession("concurso melhor pizza da minha rua")
 sndPacket = testServer.sendSessionResult(fstPacket)
-requestedSession = testClient.receiveSessionResult(sndPacket, nonce, HMACKey)
+status, sndRet = testClient.receiveSessionResult(sndPacket, nonce, HMACKey)
+if status <= 0:
+    print(sndRet)
+else:
+    print(sndRet.candidates)
 
 
-print(requestedSession.candidates)
+# Teste quando a duracao ainda nao foi atingida
+print("")
+print("Teste duracao nao atingida")
+testServer.sessions["melhor numero inteiro de 1 a 3"] = VotingSession.VotingSession("melhor numero inteiro de 1 a 3", ["1", "2", "3"], "duration", duration=0.1)
+testServer.sessions["melhor numero inteiro de 1 a 3"].candidates["2"] = 1
+fstPacket, nonce, HMACKey = testClient.verifySession("melhor numero inteiro de 1 a 3")
+sndPacket = testServer.sendSessionResult(fstPacket)
+status, sndRet = testClient.receiveSessionResult(sndPacket, nonce, HMACKey)
+if status <= 0:
+    print(sndRet)
+else:
+    print(sndRet.candidates)
+
+time.sleep(10)
+print("")
+print("Teste duracao atingida")
+fstPacket, nonce, HMACKey = testClient.verifySession("melhor numero inteiro de 1 a 3")
+sndPacket = testServer.sendSessionResult(fstPacket)
+status, sndRet = testClient.receiveSessionResult(sndPacket, nonce, HMACKey)
+if status <= 0:
+    print(sndRet)
+else:
+    print(sndRet.candidates)

@@ -408,11 +408,7 @@ class VotingServer:
 
             else:
 
-                #-----------------------------------------#
-                # THIS PART STILL NEEDS TO BE IMPLEMENTED #
-                #-----------------------------------------#
-
-                isSessionDurationOver = False
+                isSessionDurationOver = self.sessions[sessionId].hasFinished()
 
                 if isSessionDurationOver:
                     # Therefore, we must send the packet with the result

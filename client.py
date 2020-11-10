@@ -71,9 +71,19 @@ class VotingClient:
             The nonce used in "client.verifySession()"
             The HMACKey used in "client.verifySession()"
         Returns:
-            Nothing, so it raises an exception (means that either the nonce, or the tag is invalid),
-            Or a string signaling an error, 
-            Or a session object
+            First value (status):
+                
+                An integer code signaling the status of the method that can be
+                
+                -1 if a security error ocurred
+                 0 if the session isn't finished
+                 1 if the session is over
+            
+            Second value:
+
+                if status == -1: A string signaling an error
+                if status ==  0: A string signaling an error 
+                if status ==  1: A session object
     """
     def receiveSessionResult(self, packet, lastNonce, HMACKey):
         
@@ -81,6 +91,10 @@ class VotingClient:
         nonceSz = 16
         tagSz = 32
         invalidTagSz = len("Invalid tag")
+
+        securityErrorCode = -1
+        unfinishedSessionCode = 0
+        finishedSessionCode = 1
 
         try:
             anErrorOccur = packet[:errorSz].decode() == "ERROR"
@@ -93,16 +107,16 @@ class VotingClient:
             nonce = packet[errorSz:(errorSz + nonceSz)]
             
             if nonce != lastNonce:
-                raise InvalidPacket
+                return securityErrorCode, "The packet that the server sent is invalid"
 
             else:
                 if cripto.verifyTag(HMACKey, packet[:-tagSz], packet[-tagSz:]):
                     if packet[(errorSz + nonceSz):(errorSz + nonceSz + invalidTagSz)] == "Invalid Tag":
-                        return "The packet that you sent had an invalid tag"
+                        return securityErrorCode, "The last packet that you sent to server is invalid"
                     else:
-                        return "This session is still not finished"
+                        return unfinishedSessionCode, "This session is still not finished"
                 else:
-                    raise InvalidPacket
+                    return securityErrorCode, "The packet that the server sent is invalid"
 
         else:
 
@@ -129,10 +143,10 @@ class VotingClient:
                         candidatesFormat= "Dictionary"
                     )
 
-                    return requestedSession
+                    return finishedSessionCode, requestedSession
 
                 else:
-                    raise InvalidPacket
+                    return securityErrorCode, "The packet that the server sent is invalid"
 
 
     """
