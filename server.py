@@ -9,6 +9,8 @@ import cripto
 import json
 from VotingSession import VotingSession
 from cerberus import Validator
+import os
+import binascii
 
 
 class VotingServer:
@@ -17,18 +19,115 @@ class VotingServer:
         Initialize Voting server with its private and public keys 
 
         Args:
+            userPubKeys: Path to file containing JSON data about user's ids and their public keys
             privateKey: A bytearray of a PEM File containing the server's private key
             publicKey: A bytearray of a PEM File containing the server's public key
             password: A bytearray of the optional password that may have been used to encrypt the private key
     """
 
-    def __init__(self, privateKey, publicKey, password=None):
+    def __init__(self, userPubKeys, usersInfoStorage, privateKey, publicKey, password=None):
 
         self.privateKey = serialization.load_pem_private_key(
             privateKey, password=password)
         self.publicKey = serialization.load_pem_public_key(publicKey)
         self.sessions = {}
-        self.users = {}
+
+        # Load Registered User's Public Keys
+        # Used only for registering users in the platform
+        self.userPubKeys = self.loadUserPubKeys(userPubKeys)
+
+        # Load Registered User
+        self.users = self.loadUsersInfo(usersInfoStorage)
+
+        # User Session AuthToken
+        self.usersSessions = {}
+
+
+    """
+        Load JSON File containing user's ids and public keys
+
+        Args:
+            userPubKeysFilePath: Path to file contaning user's data as JSON
+
+        Returns:
+            Dictionary containing userID as key and Public Key as value. 
+            {
+                "iraline": b'PublickKey',
+                ...
+            }
+    """
+    def loadUserPubKeys(self, userPubKeysFilePath):
+        
+        if not os.path.exists(userPubKeysFilePath):
+            raise ValueError("User Public Key file does not exist.")
+
+        with open(userPubKeysFilePath, 'r') as file:
+            userPubKeysJSON = json.load(file)
+
+        # Transform PubKey String in bytes
+        for userID, pubKey in userPubKeysJSON.items():
+            userPubKeysJSON[userID] = pubKey.encode()
+
+        return userPubKeysJSON
+
+
+    """
+        Load JSON file containing stored registerd users
+
+        Args:
+            userPubKeysFilePath: Path to file contaning user's data as JSON
+
+        Returns:
+            Dictionary as follows. 
+            [
+                {
+                    id: "userID",
+                    username: "soandso",
+                    password: "bcrypted_password"
+                }
+            ]
+    """
+    def loadUsersInfo(self, userInfoFilePath):
+        
+        if not userInfoFilePath or not os.path.exists(userInfoFilePath):
+            return []
+
+        with open(userInfoFilePath, 'r') as file:
+            userInfoJSON = json.load(file)
+        
+        return userInfoJSON
+
+    
+    """
+        Get User's Serialized Public Key
+
+        Args:
+            userID: User Identifier
+
+        Returns:
+            Crypography object of user's public key
+    """
+    def getUserPublicKey(self, userID):
+        
+        if userID not in self.userPubKeys:
+            return None
+            
+        userPubKeyString = self.userPubKeys[userID]
+        return serialization.load_pem_public_key(userPubKeyString)
+
+
+    """
+        Validate authToken
+
+        Args:
+            authToken: Authentication token that identifies a logged in user
+
+        Returns:
+            Wheter token is valid
+    """
+    def validateToken(self, authToken):
+        return authToken in self.usersSessions.keys()
+
 
     """
         Decrypt packets encrypted with the Server's Public Key
@@ -281,46 +380,62 @@ class VotingServer:
         # Decrypt package
         jsonPack = json.loads(package)
 
-        encryptedMessage = jsonPack['encryptedMessage']
-        encryptedKey = jsonPack['encryptedKey']
-        nonce = jsonPack['nonce']
+        encryptedMessage = binascii.unhexlify(jsonPack['encryptedMessage'])
+        encryptedKey = binascii.unhexlify(jsonPack['encryptedKey'])
+        nonce = binascii.unhexlify(jsonPack['nonce'])
+        salt = binascii.unhexlify(jsonPack['salt'])
 
         msKey = cripto.decryptWithPrivateKey(self.privateKey, encryptedKey)
-        derivateMs = cripto.generateKeysWithMS(msKey, nonce)
+        derivateMs = cripto.generateKeysWithMS(msKey, salt)
         symmetricKey = derivateMs[0]
         macTag = derivateMs[1]
-        decryptedMessage = cripto.decryptMessageWithKeyAES(
-            symmetricKey, nonce, encryptedMessage)
 
-        # Get the id_client
-        id_client = decryptedMessage['message']
-        hashMessage = decryptedMessage['hashMessage']
+        decryptedMessage = cripto.decryptMessageWithKeyAES(
+            symmetricKey, 
+            nonce, 
+            encryptedMessage
+        )
+
+        userInfoMsg = json.loads(decryptedMessage)
+
+        # Get the user information sent
+        userID = userInfoMsg['userID']
+        signedHashMessage = binascii.unhexlify(userInfoMsg['hashMessage'])
 
         validPackage = False
+        
+        # Checks if the userID is allowed
+        if userID in self.userPubKeys:
+            
+            # Checks that the package has the user signature
+            validPackage = cripto.verifySignature(
+                self.userPubKeys[userID], 
+                cripto.createTag(macTag, userID), 
+                signedHashMessage
+            )
 
-        # Checks if the id_client is allowed
-        for value in self.users:
-
-            if value == id_client:
-
-                # Checks that the package has not been changed
-                validPackage = cripto.verifySignature(
-                    self.users, hashMessage, self.users[value]
-                )
+            # And has integrity
+            # TODO: CHECK INTEGRITY
+            # if validPackage:
+                # validPackage = cripto.verifyTag(macTag, )
 
         # Prepare the package to be sent
         message = {}
         message['status'] = validPackage
-        message['nonce'] = nonce
-        json_messageEncrypted = json.dumps(message)
+        json_messageEncrypted = json.dumps(message).encode()
 
+        nonce = cripto.generateNonce()
         encryptedMessage = cripto.encryptMessageWithKeyAES(
-            symmetricKey, nonce, json_messageEncrypted)
+            symmetricKey, 
+            nonce, 
+            json_messageEncrypted
+        )
         messageHmac = cripto.createTag(macTag, encryptedMessage)
 
         pack = {}
-        pack['message'] = encryptedMessage
-        pack['tag'] = messageHmac
+        pack['encryptedMessage'] = encryptedMessage.hex()
+        pack['nonce'] = nonce.hex()
+        pack['tag'] = messageHmac.hex()
 
         return json.dumps(pack)
 
@@ -372,7 +487,7 @@ class VotingServer:
         Validates if sent Voting packet contains a valid format
 
         Args:
-            votingInfo: Dictionary if voting information sent by client
+            votingInfo: Dictionary with voting information sent by client
 
         Returns:
             If voting info is valid
@@ -396,7 +511,8 @@ class VotingServer:
         if not session:
             return False
 
-        # TODO: VALIDATE USER TOKEN
+        if not self.validateToken(votingInfo['token']):
+            return False
 
         return True
 
@@ -408,7 +524,8 @@ class VotingServer:
             packet: Voting Request packet sent by client
 
         Returns:
-            Computes client vote in that session.
+            Computes client vote in that session and returns wheter the computation was
+            successful or not.
     """
     def computeVoteRequest(self, packet):
 
@@ -417,16 +534,12 @@ class VotingServer:
         if not self.validateVotingInfo(votingInfo):
             raise InvalidPacket
         
-        sessionID = votingInfo['sessionID']
-        session = self.sessions[sessionID]
+        session = self.sessions[votingInfo['sessionID']]
+        userID = self.usersSessions[votingInfo['token']]
 
-        # TODO: GET CLIENT INFO 
+        hasSuccesfullyVoted = session.vote(userID, votingInfo['vote'])
 
-        # TODO: Compute Voting
-        # candidate = votingInfo['candidate']
-        # hasSuccesfullyVoted = session.vote(userID, votingInfo['candidate'])
-
-        pass
+        return hasSuccesfullyVoted
 
     """              
        Check if the credentials sent is valid or not.

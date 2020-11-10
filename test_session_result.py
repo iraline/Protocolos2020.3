@@ -13,7 +13,10 @@ pubK = open('./tests/keys/client_test_keys.pub', 'rb').read()
 svPubK = open('./tests/keys/server_test_keys.pub', 'rb').read()
 svPrivK = open('./tests/keys/server_test_keys.pem', 'rb').read()
 
-testServer = VotingServer(svPrivK, svPubK)
+userPubKeysFilePath = 'usersPubKeys.json'
+userInfoFilePath = None
+
+testServer = VotingServer(userPubKeysFilePath, userInfoFilePath, svPrivK, svPubK)
 testServer.sessions["concurso melhor pizza da minha rua"] = VotingSession.VotingSession("concurso melhor pizza da minha rua", candidatos, "maxVotes", maxVotes=19)
 testClient = VotingClient(privK, pubK, svPubK)
 

@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import json
 import cripto
 from exceptions import InvalidPacket
+import binascii
 
 class VotingServerTest(unittest.TestCase):
 
@@ -30,9 +31,18 @@ class VotingServerTest(unittest.TestCase):
 
     # Read Server's Private and Public Keys to load VotingServer
     def loadVotingServer(self):
+        
+        usersPubKeys = 'usersPubKeys.json'
+        usersInfoStorage = None
+       
         with open('./tests/keys/server_test_keys.pem', 'rb') as privateKey: 
             with open('./tests/keys/server_test_keys.pub', 'rb') as publicKey: 
-                return VotingServer(privateKey.read(), publicKey.read())
+                return VotingServer(
+                    usersPubKeys, 
+                    usersInfoStorage,
+                    privateKey.read(), 
+                    publicKey.read()
+                )
 
 
     def test_can_decrypt_packet_encrypted_with_server_public_key(self):
@@ -97,13 +107,16 @@ class VotingServerTest(unittest.TestCase):
             maxVotes=20
         )
 
+        userID = 'gabriel'
+        authToken = "lalala"
         self.server.sessions['pizza'] = pizzaSession
+        self.server.usersSessions[authToken] = userID
 
         # Create Voting Request
         votingInfo = {
             'sessionID': 'pizza',
-            'vote': '1',
-            'token': 'lalala'
+            'vote': 'Calabresa',
+            'token': authToken
         }
         votingInfoAsBytes = json.dumps(votingInfo).encode()
         digest = cripto.createDigest(votingInfoAsBytes)
@@ -118,4 +131,63 @@ class VotingServerTest(unittest.TestCase):
         packet = b"".join([encryptedMessage, nonce, encryptedKey])
 
         # Send packet to server
-        self.server.computeVoteRequest(packet)
+        self.assertTrue(self.server.computeVoteRequest(packet))
+
+
+    # Test: Server.checkRequestRegister
+    def test_can_handle_a_register_request(self):
+
+        userID = 'gabriel'
+
+        with open('./keys/gabriel.pem', 'rb') as userPrivKeyFile:
+            userPrivateKey = serialization.load_pem_private_key(
+                userPrivKeyFile.read(),
+                password=None
+            ) 
+            
+        # Encrypt Packet
+        masterKey = cripto.generateMasterKey()
+        salt = cripto.generateSalt()
+        symKey, hmacKey = cripto.generateKeysWithMS(masterKey, salt)
+
+        hmacTag = cripto.createTag(hmacKey, userID)
+        signedTag = cripto.signMessage(userPrivateKey, hmacTag)
+        nonce = cripto.generateNonce()
+
+        encryptedMasterKey = cripto.encryptWithPublicKey(self.serverPublicKey, masterKey)
+        
+        message = {
+            'userID': userID,
+            'hashMessage': signedTag.hex(),
+        }
+
+        messageAsBytes= json.dumps(message).encode()
+        encryptedMessage = cripto.encryptMessageWithKeyAES(symKey, nonce, messageAsBytes)
+
+        registerInfo = {
+            'encryptedMessage': encryptedMessage.hex(),
+            'encryptedKey': encryptedMasterKey.hex(),
+            'nonce': nonce.hex(),
+            'salt': salt.hex(),
+        }
+
+        request = json.dumps(registerInfo).encode()
+
+        # Checking server response
+        response = self.server.checkRequestRegister(request)
+        responseJSON = json.loads(response)
+
+        encryptedMessage = binascii.unhexlify(responseJSON['encryptedMessage'])
+        nonce = binascii.unhexlify(responseJSON['nonce'])
+        tag = binascii.unhexlify(responseJSON['tag'])
+
+        message = cripto.decryptMessageWithKeyAES(
+            symKey,
+            nonce,
+            encryptedMessage
+        )
+
+        messageJSON = json.loads(message)
+        self.assertTrue(messageJSON['status'])
+
+        

@@ -8,3 +8,6 @@ env/
 **/*.pub
 !**/server_test_keys*
 !**/client_test_keys*
+
+# Don't ignore keys inside the 'keys' folder
+!keys/*

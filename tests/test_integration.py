@@ -12,9 +12,18 @@ class ClientServerIntegrationTest(unittest.TestCase):
 
     # Read Server's Private and Public Keys to load VotingServer
     def loadVotingServer(self):
+
+        usersPubKeys = 'usersPubKeys.json'
+        userInfoFilePath = None
+
         with open('./tests/keys/server_test_keys.pem', 'rb') as privateKey: 
             with open('./tests/keys/server_test_keys.pub', 'rb') as publicKey: 
-                return VotingServer(privateKey.read(), publicKey.read())
+                return VotingServer(
+                    usersPubKeys, 
+                    userInfoFilePath,
+                    privateKey.read(), 
+                    publicKey.read()
+                )
 
     # Read Client's Private and Public Keys and Server's public key to load VotingClient
     def loadVotingClient(self):
