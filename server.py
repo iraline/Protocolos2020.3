@@ -11,7 +11,7 @@ from VotingSession import VotingSession
 from cerberus import Validator
 import os
 import binascii
-
+import bcrypt
 
 class VotingServer:
 
@@ -96,6 +96,31 @@ class VotingServer:
             userInfoJSON = json.load(file)
         
         return userInfoJSON
+
+
+    """
+        Register a new user to the platform
+
+        Args:
+            userID: User identifier that must be free for registering (Can't have two accounts for same user)
+            username: Username chosen by the user
+            password: User's password
+    
+        Returns:
+            Create a new user 
+    """
+    def createUser(self, userID, username, password):
+
+        user = {}
+
+        user['userID'] = userID
+        user['username'] = username
+
+        hashedPassword = bcrypt.hashpw(password, salt=bcrypt.gensalt())
+
+        user['password'] = hashedPassword
+
+        return user
 
     
     """
