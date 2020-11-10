@@ -116,13 +116,58 @@ class VotingServer:
         user['userID'] = userID
         user['username'] = username
 
-        hashedPassword = bcrypt.hashpw(password, salt=bcrypt.gensalt())
+        if isinstance(password, str):
+            password = password.encode()
 
+        hashedPassword = bcrypt.hashpw(password, salt=bcrypt.gensalt())
         user['password'] = hashedPassword
 
         return user
+        
 
+    """
+        Verify if password matches with user's password hash using the secure bcrypt method
+
+        Args:
+            password: Password sent 
+            passwordHash: User's password hash
+
+        Returns:
+            Wheter password match or not
+    """
+    def verifyUserPassword(self, password, passwordHash):
+
+        if isinstance(password, str):
+            password = password.encode()
+
+        if isinstance(passwordHash, str):
+            passwordHash = passwordHash.encode()
+        
+        return bcrypt.hashpw(password, passwordHash) == passwordHash
     
+    
+    """
+        Generate an authentication token associated with a user
+
+        Args:
+            userID: User Identifier
+
+        Returns:
+            Authentication token
+    """
+    def generateAuthToken(self, userID):
+
+        authToken = os.urandom(48).hex()
+
+        # Remove older tokens
+        for token, id in self.usersSessions.items():
+            if id == userID:
+                del self.usersSessions[token]
+
+        self.usersSessions[authToken] = userID
+        return authToken
+    
+
     """
         Get User's Serialized Public Key
 
@@ -579,58 +624,54 @@ class VotingServer:
 
     """
 
-    def checkRequestLogin(self, usersList, package):
+    def checkRequestLogin(self, package):
 
         # Decrypt package
         jsonPack = json.loads(package)
 
-        encryptedMessage = jsonPack['encryptedMessage']
-        encryptedKey = jsonPack['encryptedKey']
-        nonce = jsonPack['nonce']
+        encryptedMessage = binascii.unhexlify(jsonPack['encryptedMessage'])
+        encryptedKey = binascii.unhexlify(jsonPack['encryptedKey'])
+        nonce = binascii.unhexlify(jsonPack['nonce'])
         
-        symmetricKey = cripto.decryptWithPrivateKey(self.privateKey,encryptedKey)
-        decryptedMessage = cripto.decryptMessageWithKeyAES(symmetricKey,nonce,encryptedMessage)
+        symmetricKey = cripto.decryptWithPrivateKey(
+            self.privateKey, 
+            encryptedKey
+        )
+        decryptedMessage = cripto.decryptMessageWithKeyAES(symmetricKey, nonce, encryptedMessage)
 
-        jsonMessage =  json.loads(decryptedMessage)
+        jsonMessage = json.loads(decryptedMessage)
 
         # Getting the parameters from  the message
         login = jsonMessage['login']
         password = jsonMessage['password']
 
-        validUser = 0
+        validUser = False
 
-        #Check if the credentials are the same
-        for value in usersList:
-
-            if value == login:
-
-                if usersList[value] == password:
-                    #############################################
-                    #   GENERATE AUTHTOKEN
-                    #############################################
-                    validUser = 1
-                    break
+        # Check if the credentials are the same
+        for user in self.users:
+            if login == user['username'] and self.verifyUserPassword(password, user['password']):
+                authToken = self.generateAuthToken(user['userID'])
+                validUser = True
+                break
         
         message = {}
 
         if (validUser):
-            message['status'] = b"Sucesso"
-            message['nonce'] = nonce
-            message['authToken'] = b"Token"
+            message['status'] = "Sucesso"
+            message['authToken'] = authToken
         else:
-            message['status'] = b"Invalido"
-            message['nonce'] = nonce
+            message['status'] = "Invalido"
         
         jsonMessage = json.dumps(message)
-        signMessage = cripto.signMessage(self.privateKey, jsonMessage)
+        signMessage = cripto.signMessage(self.privateKey, jsonMessage.encode())
 
         messagePreJson = {}
         messagePreJson['message'] = jsonMessage
-        messagePreJson['signMessage'] = signMessage
+        messagePreJson['signMessage'] = signMessage.hex()
         messageJson = json.dumps(messagePreJson)
 
-        #Cript Message
-        return cripto.encryptMessageWithKeyAES(symmetricKey,nonce,messageJson)
+        # Cript Message
+        return cripto.encryptMessageWithKeyAES(symmetricKey, nonce, messageJson.encode())
 
         
 

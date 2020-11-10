@@ -9,6 +9,7 @@ import json
 import cripto
 from exceptions import InvalidPacket
 import binascii
+import bcrypt
 
 class VotingServerTest(unittest.TestCase):
 
@@ -190,4 +191,67 @@ class VotingServerTest(unittest.TestCase):
         messageJSON = json.loads(message)
         self.assertTrue(messageJSON['status'])
 
+    
+
+    def test_can_verify_a_user_password_correctly(self):
+
+        password = b'132457'
+        passwordHash = bcrypt.hashpw(password, bcrypt.gensalt())
+
+        self.assertTrue(self.server.verifyUserPassword(password, passwordHash))
+
+
+    def test_can_handle_a_login_request_correctly(self):
+
+        # Add a user
+        username = userID = 'gabriel' 
+        userPassword = '123457'
+        userObj = self.server.createUser(unittest, username, userPassword)
+
+        self.server.users.append(userObj)
+
+        # Creating a login packet
+        symKey = cripto.generateSymmetricKey()
+        nonce = cripto.generateNonce()
+
+        encryptedKey = cripto.encryptWithPublicKey(
+            self.serverPublicKey,
+            symKey
+        )
+
+        message = {
+            'login': username,
+            'password': userPassword
+        }
+
+        encryptedMessage = cripto.encryptMessageWithKeyAES(
+            symKey,
+            nonce,
+            json.dumps(message).encode()
+        )
+
+        packet = {
+            'encryptedMessage': encryptedMessage.hex(),
+            'encryptedKey': encryptedKey.hex(),
+            'nonce': nonce.hex(),
+        }
+
+        packetJSONStr = json.dumps(packet) 
+
+        # 'Send' Packet to server
+        response = self.server.checkRequestLogin(packetJSONStr) 
+
+        # Verifying server's response
+        # Decrypt and deserialize
+        decryptedResponse = cripto.decryptMessageWithKeyAES(
+            symKey,
+            nonce,
+            response
+        )
+
+        responseData = json.loads(decryptedResponse)
+
+        statusInfo = json.loads(responseData['message'])
+        self.assertEqual(statusInfo['status'], 'Sucesso')
+        self.assertTrue(self.server.validateToken(statusInfo['authToken']))
         
