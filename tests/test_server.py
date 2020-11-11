@@ -122,7 +122,6 @@ class VotingServerTest(unittest.TestCase):
         votingInfoAsBytes = json.dumps(votingInfo).encode()
         digest = cripto.createDigest(votingInfoAsBytes)
         
-
         symKey = cripto.generateSymmetricKey()
         nonce = cripto.generateNonce()
         encryptedMessage = cripto.encryptMessageWithKeyAES(symKey, nonce, votingInfoAsBytes + digest)
@@ -132,7 +131,9 @@ class VotingServerTest(unittest.TestCase):
         packet = b"".join([encryptedMessage, nonce, encryptedKey])
 
         # Send packet to server
-        self.assertTrue(self.server.computeVoteRequest(packet))
+        response = self.server.computeVoteRequest(packet)
+
+        self.assertTrue()
 
 
     # Test: Server.checkRequestRegister
@@ -254,4 +255,6 @@ class VotingServerTest(unittest.TestCase):
         statusInfo = json.loads(responseData['message'])
         self.assertEqual(statusInfo['status'], 'Sucesso')
         self.assertTrue(self.server.validateToken(statusInfo['authToken']))
+        
+
         
