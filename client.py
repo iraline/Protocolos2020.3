@@ -12,7 +12,7 @@ import json
 class VotingClient:
 
     """
-        Initialize Voting Client with client's private and public keys, alogn with server's public key 
+        Initialize Voting Client with client's private and public keys, alogn with server's public key
 
         Args:
             privateKey: A bytearray of a PEM File containing the client's private key
@@ -42,7 +42,6 @@ class VotingClient:
     def signMessage(self, message):
         return cripto.signMessage(self.privateKey, message)
 
-
     """
         Request a verification for a session result
 
@@ -51,6 +50,7 @@ class VotingClient:
         Returns:
             The packet that should be sent in bytearray format
     """
+
     def verifySession(self, sessionId):
 
         nonce = cripto.generateNonce()
@@ -58,11 +58,11 @@ class VotingClient:
         macKey = cripto.generateMACKey()
         tag = cripto.createTag(macKey, message)
         message = b"".join([message, tag])
-        encryptedMacKey = cripto.encryptWithPublicKey(self.serverPublicKey, macKey)
+        encryptedMacKey = cripto.encryptWithPublicKey(
+            self.serverPublicKey, macKey)
         message = b"".join([message, encryptedMacKey])
         return message, nonce, macKey
 
-    
     """
         Recieve session result packet
 
@@ -72,21 +72,22 @@ class VotingClient:
             The HMACKey used in "client.verifySession()"
         Returns:
             First value (status):
-                
+
                 An integer code signaling the status of the method that can be
-                
+
                 -1 if a security error ocurred
                  0 if the session isn't finished
                  1 if the session is over
-            
+
             Second value:
 
                 if status == -1: A string signaling an error
-                if status ==  0: A string signaling an error 
+                if status ==  0: A string signaling an error
                 if status ==  1: A session object
     """
+
     def receiveSessionResult(self, packet, lastNonce, HMACKey):
-        
+
         errorSz = 5
         nonceSz = 16
         tagSz = 32
@@ -101,11 +102,10 @@ class VotingClient:
         except:
             anErrorOccur = False
 
-
         if anErrorOccur:
 
             nonce = packet[errorSz:(errorSz + nonceSz)]
-            
+
             if nonce != lastNonce:
                 return securityErrorCode, "The packet that the server sent is invalid"
 
@@ -126,21 +126,21 @@ class VotingClient:
 
             if nonce != lastNonce:
                 raise InvalidPacket
-            
+
             else:
                 if cripto.verifyTag(HMACKey, b"".join([nonce, byteDumpedSession]), tag):
-                    
+
                     sessionDict = json.loads(byteDumpedSession.decode())
 
                     # Now, we have to convert the sessionDict to an object session
 
                     requestedSession = VotingSession(
-                        sessionName= sessionDict["id"],
-                        candidates= sessionDict["candidates"],
-                        sessionMode= sessionDict["sessionMode"],
-                        duration= sessionDict["duration"],
-                        maxVotes= sessionDict["maxVotes"],
-                        candidatesFormat= "Dictionary"
+                        sessionName=sessionDict["id"],
+                        candidates=sessionDict["candidates"],
+                        sessionMode=sessionDict["sessionMode"],
+                        duration=sessionDict["duration"],
+                        maxVotes=sessionDict["maxVotes"],
+                        candidatesFormat="Dictionary"
                     )
 
                     return finishedSessionCode, requestedSession
@@ -148,9 +148,8 @@ class VotingClient:
                 else:
                     return securityErrorCode, "The packet that the server sent is invalid"
 
-
     """
-        Create a new voting session 
+        Create a new voting session
 
         Args:
             sessionName: Session Unique identifier
@@ -176,19 +175,20 @@ class VotingClient:
         elif sessionMode.lower() == 'duration':
             sessionInfo['duration'] = duration
         else:
-            raise ValueError('Invalid value for \'sessionMode\'. Choose one of \'maxVotes\' or \'duration\'.')
+            raise ValueError(
+                'Invalid value for \'sessionMode\'. Choose one of \'maxVotes\' or \'duration\'.')
 
-        # Creating Packet 
+        # Creating Packet
         sessionInfoAsBytes = json.dumps(sessionInfo).encode()
         hmacKey = cripto.generateMACKey()
-        tag = cripto.createTag(hmacKey, sessionInfoAsBytes)       
-        encryptedHMACKey = cripto.encryptWithPublicKey(self.serverPublicKey, hmacKey)
+        tag = cripto.createTag(hmacKey, sessionInfoAsBytes)
+        encryptedHMACKey = cripto.encryptWithPublicKey(
+            self.serverPublicKey, hmacKey)
 
         return b''.join([sessionInfoAsBytes, tag, encryptedHMACKey])
-    
-    
-    """              
-        Encrypt the login and password from the user with a symetric key. 
+
+    """
+        Encrypt the login and password from the user with a symetric key.
         The symetric key is encrypted with the server`s publickey
 
         Args:
@@ -203,11 +203,10 @@ class VotingClient:
     def cryptCredentials(self, login, password, nonce):
 
         symetricKey = cripto.generateSymmetricKey()
-       
+
         message = {}
-        message['login'] = bytes(login, encoding= 'utf-8')
-        message['password'] = bytes(password, encoding= 'utf-8')
-        
+        message['login'] = bytes(login, encoding='utf-8')
+        message['password'] = bytes(password, encoding='utf-8')
 
         json_data = json.dumps(message)
 
@@ -216,20 +215,20 @@ class VotingClient:
         encryptedKey = cripto.encryptWithPublicKey(
             self.serverPublicKey, symetricKey)
 
-        pack={}
-        pack['encryptedMessage'] = bytes(encryptedMessage, encoding= 'utf-8')
-        pack['encryptedKey'] = bytes(encryptedKey, encoding= 'utf-8')
+        pack = {}
+        pack['encryptedMessage'] = bytes(encryptedMessage, encoding='utf-8')
+        pack['encryptedKey'] = bytes(encryptedKey, encoding='utf-8')
         pack['nonce'] = nonce
 
         return json.dumps(pack)
-    
-    """              
+
+    """
         Encrypt the "id_client" with a symetric key, sign this message with your private key
         and send a generate MasterKey encrypted with the server's public key
-    
+
         Args:
             self: Get the server's publicKey and client's privateKey
-            id_client: User's uniqueidentification. 
+            id_client: User's uniqueidentification.
         Returns:
             The packet that should be sent in bytearray format
     """
@@ -238,25 +237,62 @@ class VotingClient:
 
         nonce = cripto.generateNonce()
         msKey = cripto.generateMasterKey()
-     
-        signId = cripto.signMessage(self.privateKey,id_client)
 
-        symmetricHmac = cripto.generateKeysWithMS(msKey,nonce)
-        
+        signId = cripto.signMessage(self.privateKey, id_client)
+
+        symmetricHmac = cripto.generateKeysWithMS(msKey, nonce)
+
         symmetricKey = symmetricHmac[0]
-      
+
         message = {}
-        message['message'] = id_client #bytes(id_client, encoding= 'utf-8')
-        message['hashMessage'] = signId #bytes(signId, encoding= 'utf-8')
+        message['message'] = id_client  # bytes(id_client, encoding= 'utf-8')
+        message['hashMessage'] = signId  # bytes(signId, encoding= 'utf-8')
         json_messageEncrypted = json.dumps(message)
 
-        encryptedMessage = cripto.encryptMessageWithKeyAES( 
+        encryptedMessage = cripto.encryptMessageWithKeyAES(
             symmetricKey, nonce, json_messageEncrypted)
-        criptedMsKey = cripto.encryptWithPublicKey(self.serverPublicKey,msKey)
+        criptedMsKey = cripto.encryptWithPublicKey(self.serverPublicKey, msKey)
 
-        pack={}
+        pack = {}
         pack['encryptedMessage'] = encryptedMessage
         pack['encryptedKey'] = criptedMsKey
         pack['nonce'] = nonce
 
         return json.dumps(pack)
+
+    """
+        Encrypt the "vote" and the "session" of the client with a symetric key
+        and send this symmetricKey encrypted with the server's public key
+
+        Args:
+            self: Get the server's publicKey and client's privateKey
+            vote: User's vote in bytes.
+            id_session: Session where the user voted in bytes.
+            authToken: authToken from the user in bytes.
+        Returns:
+            The packet that should be sent in bytearray format
+    """
+
+    def submitVote(self, vote, id_session, authToken):
+
+        # Generate nonce and key
+        nonce = cripto.generateNonce()
+        symmetricKey = cripto.generateSymmetricKey()
+
+        jsonMessage = {}
+        jsonMessage['voto'] = vote
+        jsonMessage['id_sessao'] = id_session
+        jsonMessage['authToken'] = authToken
+
+        message = json.dumps(jsonMessage)
+
+        signMessage = cripto.signMessage(self.privateKey, message)
+
+        msg = b"".join([message,signMessage])
+
+        pack = cripto.encryptMessageWithKeyAES(symmetricKey,nonce,msg)
+
+        encryptedKey = cripto.encryptWithPublicKey(self.serverPublicKey,symmetricKey)
+
+        return  b"".join([pack,nonce,encryptedKey])
+        
