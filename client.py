@@ -7,6 +7,7 @@ from VotingSession import VotingSession
 import os
 import cripto
 import json
+import base64
 
 
 class VotingClient:
@@ -260,39 +261,63 @@ class VotingClient:
 
         return json.dumps(pack)
 
+
     """
-        Encrypt the "vote" and the "session" of the client with a symetric key
-        and send this symmetricKey encrypted with the server's public key
+        Create a vote request to vote in a session 
 
         Args:
-            self: Get the server's publicKey and client's privateKey
-            vote: User's vote in bytes.
-            id_session: Session where the user voted in bytes.
-            authToken: authToken from the user in bytes.
-        Returns:
-            The packet that should be sent in bytearray format
+            sessionID: Session Identifier
+            candidate: The canditate that the user chose
+
+        Retruns:
+            A byte array of the packt to be sent to the server
     """
+    def createVoteRequest(self, sessionID, candidate):
 
-    def submitVote(self, vote, id_session, authToken):
+        voteMessage = {
+            'sessionID': sessionID,
+            'vote': candidate,
+            'token': self.token,
+        }
+        voteMessageAsBytes = json.dumps(voteMessage).encode()
 
-        # Generate nonce and key
+        symKey = cripto.generateSymmetricKey()
+        encryptedKey = cripto.encryptWithPublicKey(
+            self.serverPublicKey,
+            symKey
+        )
+
         nonce = cripto.generateNonce()
-        symmetricKey = cripto.generateSymmetricKey()
+        digest = cripto.createDigest(voteMessageAsBytes)
+        signedDigest = cripto.signMessage(self.privateKey, digest)
 
-        jsonMessage = {}
-        jsonMessage['voto'] = vote
-        jsonMessage['id_sessao'] = id_session
-        jsonMessage['authToken'] = authToken
+        packet = {
+            'message': voteMessage,
+            'digest': digest,
+            'signedDigest': signedDigest            
+        }
 
-        message = json.dumps(jsonMessage)
+        encryptedPacket = cripto.encryptMessageWithKeyAES(
+            symKey,
+            nonce,
+            json.dumps(packet).encode()
+        )
 
-        signMessage = cripto.signMessage(self.privateKey, message)
+        packet = {
+            'encryptedPacket': base64.encode encryptedPacket.hex()
+            'encryptedKey': encryptedKey.hex(),
+            'nonce': nonce.hex()
+        }
 
-        msg = b"".join([message,signMessage])
+        return json.dumps(packet).encode()
 
-        pack = cripto.encryptMessageWithKeyAES(symmetricKey,nonce,msg)
 
-        encryptedKey = cripto.encryptWithPublicKey(self.serverPublicKey,symmetricKey)
 
-        return  b"".join([pack,nonce,encryptedKey])
+    """
+        Handles the process of voting in a session
+    """
+    def handleVoteRequest(self, sessionId, candidate):
+
+        packet = self.CreateVoteRequest(sessionId, candidate) 
+
         
