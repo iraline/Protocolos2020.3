@@ -219,7 +219,7 @@ class VotingServer:
             packet: Packet received without OP field (operation) 
         
         Returns:
-            Session Name (ID) of created voting session
+            A string representing the session Name (ID) of created voting session
 
         Raises:
             InvalidPacket
@@ -269,10 +269,10 @@ class VotingServer:
         Also validate if sessionName can be used or is already taken.
 
         Args:
-            sessionInfo: Packet info containing options for a new voting session
+            sessionInfo: Packet info containing options for a new voting session. It is a dictionary
 
         Returns:
-            Wheter packet information is valid or not
+            Wheter packet information is valid or not. True if valid, else false.
 
     """
 
@@ -362,7 +362,7 @@ class VotingServer:
     Args:
         The packet sent from the client method "client.verifySession()"
     Retuns:
-        The sorted list in a decrescent order of a tuple of candidates and number of votes
+        A packet containing an error message or the session object
     """
 
     def sendSessionResult(self, packet):
@@ -377,7 +377,12 @@ class VotingServer:
             return InvalidTagPacket
 
         elif not sessionId in self.sessions:
-            print("sei la")
+            # Therefore, we must send the packet signaling that the session isn't over yet
+            message = b"".join([b"ERROR", nonce])
+            message = b"".join([message, b"Unfinished session"])
+            UnfinishedSessionPacket = b"".join(
+                [message, cripto.createTag(macKey, message)])
+            return UnfinishedSessionPacket
 
         else:
             if self.sessions[sessionId].sessionMode.lower() == "maxvotes":
@@ -408,11 +413,7 @@ class VotingServer:
 
             else:
 
-                #-----------------------------------------#
-                # THIS PART STILL NEEDS TO BE IMPLEMENTED #
-                #-----------------------------------------#
-
-                isSessionDurationOver = False
+                isSessionDurationOver = self.sessions[sessionId].hasFinished()
 
                 if isSessionDurationOver:
                     # Therefore, we must send the packet with the result
@@ -560,7 +561,7 @@ class VotingServer:
             votingInfo: Dictionary with voting information sent by client
 
         Returns:
-            If voting info is valid
+            True if voting info is valid, else false
     """
     def validateVotingInfo(self, votingInfo):
 
@@ -595,7 +596,7 @@ class VotingServer:
 
         Returns:
             Computes client vote in that session and returns wheter the computation was
-            successful or not.
+            successful or not. So it also returns a boolen
     """
     def computeVoteRequest(self, packet):
 

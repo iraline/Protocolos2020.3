@@ -18,7 +18,6 @@ import base64
             The packet that should be sent in bytearray format
     """
 
-
 def verifySession(self, sessionId):
 
     nonce = cripto.generateNonce()
@@ -30,6 +29,92 @@ def verifySession(self, sessionId):
         self.serverPublicKey, macKey)
     message = b"".join([message, encryptedMacKey])
     return message, nonce, macKey
+
+
+"""
+    Recieve session result packet
+
+    Args:
+        The packet sent from the server method "server.sendSessionResult()"
+        The nonce used in "client.verifySession()"
+        The HMACKey used in "client.verifySession()"
+    Returns:
+        First value (status):
+
+            An integer code signaling the status of the method that can be
+
+            -1 if a security error ocurred
+                0 if the session isn't finished
+                1 if the session is over
+
+        Second value:
+
+            if status == -1: A string signaling an error
+            if status ==  0: A string signaling an error
+            if status ==  1: A session object
+"""
+
+def receiveSessionResult(packet, lastNonce, HMACKey):
+
+    errorSz = 5
+    nonceSz = 16
+    tagSz = 32
+    invalidTagSz = len("Invalid tag")
+
+    securityErrorCode = -1
+    unfinishedSessionCode = 0
+    finishedSessionCode = 1
+
+    try:
+        anErrorOccur = packet[:errorSz].decode() == "ERROR"
+    except:
+        anErrorOccur = False
+
+    if anErrorOccur:
+
+        nonce = packet[errorSz:(errorSz + nonceSz)]
+
+        if nonce != lastNonce:
+            return securityErrorCode, "The packet that the server sent is invalid"
+
+        else:
+            if cripto.verifyTag(HMACKey, packet[:-tagSz], packet[-tagSz:]):
+                if packet[(errorSz + nonceSz):(errorSz + nonceSz + invalidTagSz)] == "Invalid Tag":
+                    return securityErrorCode, "The last packet that you sent to server is invalid"
+                else:
+                    return unfinishedSessionCode, "This session is still not finished"
+            else:
+                return securityErrorCode, "The packet that the server sent is invalid"
+
+    else:
+
+        nonce = packet[:nonceSz]
+        byteDumpedSession = packet[nonceSz:-tagSz]
+        tag = packet[-tagSz:]
+
+        if nonce != lastNonce:
+            raise InvalidPacket
+
+        else:
+            if cripto.verifyTag(HMACKey, b"".join([nonce, byteDumpedSession]), tag):
+
+                sessionDict = json.loads(byteDumpedSession.decode())
+
+                # Now, we have to convert the sessionDict to an object session
+
+                requestedSession = VotingSession(
+                    sessionName=sessionDict["id"],
+                    candidates=sessionDict["candidates"],
+                    sessionMode=sessionDict["sessionMode"],
+                    duration=sessionDict["duration"],
+                    maxVotes=sessionDict["maxVotes"],
+                    candidatesFormat="Dictionary"
+                )
+
+                return finishedSessionCode, requestedSession
+
+            else:
+                return securityErrorCode, "The packet that the server sent is invalid"
 
 
 class VotingClient:
@@ -65,121 +150,16 @@ class VotingClient:
     def signMessage(self, message):
         return cripto.signMessage(self.privateKey, message)
 
-    """
-        Request a verification for a session result
-
-        Args:
-            The session ID
-        Returns:
-            The packet that should be sent in bytearray format
-    """
-
-    def verifySession(self, sessionId):
-
-        nonce = cripto.generateNonce()
-        message = b"".join([nonce, sessionId.encode()])
-        macKey = cripto.generateMACKey()
-        tag = cripto.createTag(macKey, message)
-        message = b"".join([message, tag])
-        encryptedMacKey = cripto.encryptWithPublicKey(
-            self.serverPublicKey, macKey)
-        message = b"".join([message, encryptedMacKey])
-        return message, nonce, macKey
-
-    """
-        Recieve session result packet
-
-        Args:
-            The packet sent from the server method "server.sendSessionResult()"
-            The nonce used in "client.verifySession()"
-            The HMACKey used in "client.verifySession()"
-        Returns:
-            First value (status):
-
-                An integer code signaling the status of the method that can be
-
-                -1 if a security error ocurred
-                 0 if the session isn't finished
-                 1 if the session is over
-
-            Second value:
-
-                if status == -1: A string signaling an error
-                if status ==  0: A string signaling an error
-                if status ==  1: A session object
-    """
-
-    def receiveSessionResult(self, packet, lastNonce, HMACKey):
-
-        errorSz = 5
-        nonceSz = 16
-        tagSz = 32
-        invalidTagSz = len("Invalid tag")
-
-        securityErrorCode = -1
-        unfinishedSessionCode = 0
-        finishedSessionCode = 1
-
-        try:
-            anErrorOccur = packet[:errorSz].decode() == "ERROR"
-        except:
-            anErrorOccur = False
-
-        if anErrorOccur:
-
-            nonce = packet[errorSz:(errorSz + nonceSz)]
-
-            if nonce != lastNonce:
-                return securityErrorCode, "The packet that the server sent is invalid"
-
-            else:
-                if cripto.verifyTag(HMACKey, packet[:-tagSz], packet[-tagSz:]):
-                    if packet[(errorSz + nonceSz):(errorSz + nonceSz + invalidTagSz)] == "Invalid Tag":
-                        return securityErrorCode, "The last packet that you sent to server is invalid"
-                    else:
-                        return unfinishedSessionCode, "This session is still not finished"
-                else:
-                    return securityErrorCode, "The packet that the server sent is invalid"
-
-        else:
-
-            nonce = packet[:nonceSz]
-            byteDumpedSession = packet[nonceSz:-tagSz]
-            tag = packet[-tagSz:]
-
-            if nonce != lastNonce:
-                raise InvalidPacket
-
-            else:
-                if cripto.verifyTag(HMACKey, b"".join([nonce, byteDumpedSession]), tag):
-
-                    sessionDict = json.loads(byteDumpedSession.decode())
-
-                    # Now, we have to convert the sessionDict to an object session
-
-                    requestedSession = VotingSession(
-                        sessionName=sessionDict["id"],
-                        candidates=sessionDict["candidates"],
-                        sessionMode=sessionDict["sessionMode"],
-                        duration=sessionDict["duration"],
-                        maxVotes=sessionDict["maxVotes"],
-                        candidatesFormat="Dictionary"
-                    )
-
-                    return finishedSessionCode, requestedSession
-
-                else:
-                    return securityErrorCode, "The packet that the server sent is invalid"
 
     """
         Create a new voting session
 
         Args:
-            sessionName: Session Unique identifier
+            sessionName: Session Unique identifier as a string
             candidates: List of strings containing candidates names.
             sessionMode: String that describes how this session will end. Either 'maxVotes' or 'duration'.
-            maxVotes: Votes needed to end session. Used if sessionMode equals 'maxVotes'.
-            duration: Time duration of the session in minutes. Used if sessionMode equals 'duration'.
+            maxVotes: An integer representing votes needed to end session. Used if sessionMode equals 'maxVotes'.
+            duration: An integer representing time duration of the session in minutes. Used if sessionMode equals 'duration'.
 
         Returns:
             Packet containing a request for creating a new session.
@@ -287,11 +267,11 @@ class VotingClient:
         Create a vote request to vote in a session 
 
         Args:
-            sessionID: Session Identifier
-            candidate: The canditate that the user chose
+            sessionID: Session Identifier, a string.
+            candidate: The canditate that the user chose, a string.
 
         Retruns:
-            A byte array of the packt to be sent to the server
+            A byte array of the packet to be sent to the server
     """
 
 
