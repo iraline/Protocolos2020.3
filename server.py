@@ -748,8 +748,6 @@ class VotingServer:
         return responsePacketAsBytes
 
 
-    def returnVotingConfirmation(self, packet)
-
     """
     """
     def createChallengePacket(self):
