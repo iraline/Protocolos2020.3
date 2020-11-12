@@ -3,7 +3,12 @@ import cripto
 import server
 import client
 from threading import Thread
+<<<<<<< Updated upstream
 from networking import ClientNetworkConnection, ServerNetworkConnetion
+=======
+import networking
+
+>>>>>>> Stashed changes
 from cryptography.hazmat.primitives import serialization
 import json
 from base64 import b64encode, b64decode
@@ -209,3 +214,39 @@ class Biblioteca():
         loginResponse = self.server.checkRequestLogin(loginInfoPacket)
 
         conn.send(loginResponse)
+        conn.close
+
+
+    """
+        Request the criation of a voting session
+
+        Args:
+            sessionId: A string
+            candidates: A list of candidates (list of strings)
+            sessionMode: A string "duration" or "maxVotes"
+            maxVotes: An integer
+            duration: An integer representing the minutes of duration
+    """
+
+    def createVotingSession(self, sessionId, candidates, sessionMode, maxVotes = 500, duration = 60):
+
+        tagSize = 32
+
+        con = networking.ClientNetworkConnection(self.host, self.port)
+        s = con.getConnection()
+
+        message, hmacKey = client.createVotingSession(self.serverPublicKey, sessionId, candidates, sessionMode, maxVotes, duration)
+        s.send(message)
+        
+        byteAnswer = s.recv(1024)
+
+        answer = byteAnswer.decode()
+        
+        tag = answer[-tagSize:]
+        receivedSessionId = tag[:-tagSize]
+
+        if not cripto.verifyTag(hmacKey, receivedSessionId.encode(), tag):
+            print("Invalid tag")
+            return "Error: Invalid Tag"
+
+        return receivedSessionId

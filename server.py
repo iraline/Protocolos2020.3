@@ -249,14 +249,14 @@ class VotingServer:
         hmacKey = self.decryptPacketWithServerPrivateKey(encryptedHMACKey)
 
         if not cripto.verifyTag(hmacKey, message, hmacTag):
-            raise InvalidPacket
+            raise InvalidPacket("This tag is invalid")
 
         # Get Session Options
         sessionInfo = json.loads(message.decode())
 
         # Check if session options sent make for a valid session
         if not self.validateVotingSessionOptions(sessionInfo):
-            raise InvalidPacket
+            raise InvalidPacket("This session is invalid")
 
         session = VotingSession(
             sessionName=sessionInfo['sessionName'],
@@ -269,7 +269,11 @@ class VotingServer:
         # Add Session
         self.sessions[session.id] = session
 
-        return session.id
+        # Generating a tag to have integrity
+        tag = cripto.createTag(hmacKey, session.id.encode())
+        message = b"".join([session.id.encode(), tag])
+
+        return message
 
     """
         Validate if packet contains valid information to create a new Voting Session.

@@ -45,8 +45,8 @@ def verifySession(self, sessionId):
             An integer code signaling the status of the method that can be
 
             -1 if a security error ocurred
-                0 if the session isn't finished
-                1 if the session is over
+             0 if the session isn't finished
+             1 if the session is over
 
         Second value:
 
@@ -117,6 +117,45 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
             else:
                 return securityErrorCode, "The packet that the server sent is invalid"
 
+"""
+    Create a new voting session
+
+    Args:
+        sessionName: Session Unique identifier as a string
+        candidates: List of strings containing candidates names.
+        sessionMode: String that describes how this session will end. Either 'maxVotes' or 'duration'.
+        maxVotes: An integer representing votes needed to end session. Used if sessionMode equals 'maxVotes'.
+        duration: An integer representing time duration of the session in minutes. Used if sessionMode equals 'duration'.
+
+    Returns:
+        Packet containing a request for creating a new session.
+"""
+
+def createVotingSession(serverPublicKey, sessionName, candidates, sessionMode, maxVotes=500, duration=60):
+
+    sessionInfo = {
+        'sessionName': sessionName,
+        'candidates': candidates,
+        'sessionMode': sessionMode
+    }
+
+    if sessionMode.lower() == 'maxvotes':
+        sessionInfo['maxVotes'] = maxVotes
+    elif sessionMode.lower() == 'duration':
+        sessionInfo['duration'] = duration
+    else:
+        raise ValueError(
+            'Invalid value for \'sessionMode\'. Choose one of \'maxVotes\' or \'duration\'.')
+
+    # Creating Packet
+    sessionInfoAsBytes = json.dumps(sessionInfo).encode()
+    hmacKey = cripto.generateMACKey()
+    tag = cripto.createTag(hmacKey, sessionInfoAsBytes)
+    encryptedHMACKey = cripto.encryptWithPublicKey(
+        serverPublicKey, hmacKey)
+
+    return b''.join([sessionInfoAsBytes, tag, encryptedHMACKey]), hmacKey
+
 
 class VotingClient:
 
@@ -155,44 +194,6 @@ class VotingClient:
         return cripto.signMessage(self.privateKey, message)
 
 
-    """
-        Create a new voting session
-
-        Args:
-            sessionName: Session Unique identifier as a string
-            candidates: List of strings containing candidates names.
-            sessionMode: String that describes how this session will end. Either 'maxVotes' or 'duration'.
-            maxVotes: An integer representing votes needed to end session. Used if sessionMode equals 'maxVotes'.
-            duration: An integer representing time duration of the session in minutes. Used if sessionMode equals 'duration'.
-
-        Returns:
-            Packet containing a request for creating a new session.
-    """
-
-    def createVotingSession(self, sessionName, candidates, sessionMode, maxVotes=500, duration=60):
-
-        sessionInfo = {
-            'sessionName': sessionName,
-            'candidates': candidates,
-            'sessionMode': sessionMode
-        }
-
-        if sessionMode.lower() == 'maxvotes':
-            sessionInfo['maxVotes'] = maxVotes
-        elif sessionMode.lower() == 'duration':
-            sessionInfo['duration'] = duration
-        else:
-            raise ValueError(
-                'Invalid value for \'sessionMode\'. Choose one of \'maxVotes\' or \'duration\'.')
-
-        # Creating Packet
-        sessionInfoAsBytes = json.dumps(sessionInfo).encode()
-        hmacKey = cripto.generateMACKey()
-        tag = cripto.createTag(hmacKey, sessionInfoAsBytes)
-        encryptedHMACKey = cripto.encryptWithPublicKey(
-            self.serverPublicKey, hmacKey)
-
-        return b''.join([sessionInfoAsBytes, tag, encryptedHMACKey])
 
     """
         Encrypt the login and password from the user with a symetric key.
