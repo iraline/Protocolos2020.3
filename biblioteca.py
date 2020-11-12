@@ -3,12 +3,7 @@ import cripto
 import server
 import client
 from threading import Thread
-<<<<<<< Updated upstream
 from networking import ClientNetworkConnection, ServerNetworkConnetion
-=======
-import networking
-
->>>>>>> Stashed changes
 from cryptography.hazmat.primitives import serialization
 import json
 from base64 import b64encode, b64decode
@@ -119,6 +114,10 @@ class Biblioteca():
 
         elif(operator == 2):
             print("teste1")
+
+        elif(operator == 3):
+            message = self.server.createVotingSession(self, packet) 
+            conn.send(message)
 
         else:
             print("teste2")
@@ -232,11 +231,11 @@ class Biblioteca():
 
         tagSize = 32
 
-        con = networking.ClientNetworkConnection(self.host, self.port)
+        con = ClientNetworkConnection(self.host, self.port)
         s = con.getConnection()
 
         message, hmacKey = client.createVotingSession(self.serverPublicKey, sessionId, candidates, sessionMode, maxVotes, duration)
-        s.send(message)
+        s.send(b"".join([message, 3]))
         
         byteAnswer = s.recv(1024)
 
