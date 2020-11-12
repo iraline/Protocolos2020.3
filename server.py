@@ -597,7 +597,7 @@ class VotingServer:
             succMsgHash = cripto.createDigest(succMsg)
             signedSuccHash = cripto.signMessage(self.privateKey, succMsgHash)
 
-            succMsg = b"".join([succMsg, signedErrorHash])
+            succMsg = b"".join([succMsg, signedSuccHash])
             return succMsg
             
 
