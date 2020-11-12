@@ -227,15 +227,15 @@ class Biblioteca():
             duration: An integer representing the minutes of duration
     """
 
-    def createVotingSession(self, sessionId, candidates, sessionMode, maxVotes = 500, duration = 60):
+    def createVotingSession(self, sessionId, candidates, sessionMode, quantity):
 
         tagSize = 32
 
         con = ClientNetworkConnection(self.host, self.port)
         s = con.getConnection()
 
-        message, hmacKey = client.createVotingSession(self.serverPublicKey, sessionId, candidates, sessionMode, maxVotes, duration)
-        s.send(b"".join([message, 3]))
+        message, hmacKey = client.createVotingSession(self.serverPublicKey, sessionId, candidates, sessionMode, quantity)
+        s.send(b"".join([03,message]))
         
         byteAnswer = s.recv(1024)
 
