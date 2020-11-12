@@ -235,7 +235,7 @@ class Biblioteca():
         s = con.getConnection()
 
         message, hmacKey = client.createVotingSession(self.serverPublicKey, sessionId, candidates, sessionMode, quantity)
-        s.send(b"".join([03,message]))
+        s.send(b"".join([b"03",message]))
         
         byteAnswer = s.recv(1024)
 
