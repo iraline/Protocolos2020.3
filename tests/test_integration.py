@@ -100,8 +100,4 @@ class ClientServerIntegrationTest(unittest.TestCase):
         sndPacket = self.server.sendSessionResult(fstPacket)
         requestedSession = self.client.receiveSessionResult(sndPacket, nonce, HMACKey)
        
-        print(requestedSession.candidates)
-
-
-    def test_make_a_vote(self):
-        # TODO: CREATE TEST
+        # print(requestedSession.candidates)
