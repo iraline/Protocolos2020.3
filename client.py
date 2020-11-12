@@ -127,6 +127,7 @@ class VotingClient:
             publicKey: A bytearray of a PEM File containing the client's public key
             serverPublicKey: A bytearray of a PEM File containing the server's public key
             password: A bytearray of the optional password that may have been used to encrypt the private key
+            Token: Should be a b64 or hex or a string. It will be assigned later.
     """
 
     def __init__(self, clientPrivateKey, clientPublicKey, serverPublicKey, clientPassword=None):
@@ -136,6 +137,7 @@ class VotingClient:
         self.publicKey = serialization.load_pem_public_key(clientPublicKey)
         self.serverPublicKey = serialization.load_pem_public_key(
             serverPublicKey)
+        self.token = None
 
     """
         Sign message with Client's Private Key
@@ -275,14 +277,18 @@ class VotingClient:
     """
 
 
-'''    def createVoteRequest(self, sessionID, candidate):
+    def createVoteRequest(self, sessionID, candidate):
 
-        voteMessage = {
+        if self.token == None:
+            print("ERROR! Your token shouldn't be None! Please login before vote.")
+            return
+
+        votingInfo = {
             'sessionID': sessionID,
             'vote': candidate,
             'token': self.token,
         }
-        voteMessageAsBytes = json.dumps(voteMessage).encode()
+        votingInfoAsBytes = json.dumps(votingInfo).encode()
 
         symKey = cripto.generateSymmetricKey()
         encryptedKey = cripto.encryptWithPublicKey(
@@ -291,13 +297,13 @@ class VotingClient:
         )
 
         nonce = cripto.generateNonce()
-        digest = cripto.createDigest(voteMessageAsBytes)
-        signedDigest = cripto.signMessage(self.privateKey, digest)
+        digest = cripto.createDigest(votingInfoAsBytes)
+        # signedDigest = cripto.signMessage(self.privateKey, digest)
 
         packet = {
-            'message': voteMessage,
+            'votingInfo': votingInfoAsBytes,
             'digest': digest,
-            'signedDigest': signedDigest            
+            # 'signedDigest': signedDigest            
         }
 
         encryptedPacket = cripto.encryptMessageWithKeyAES(
@@ -307,19 +313,18 @@ class VotingClient:
         )
 
         packet = {
-            'encryptedPacket': base64.encode.encryptedPacket.hex(),
-            'encryptedKey': encryptedKey.hex(),
-            'nonce': nonce.hex()
+            'encryptedPacket': base64.b64encode(encryptedPacket).decode(),
+            'encryptedKey': base64.b64encode(encryptedKey).decode(),
+            'nonce': base64.b64encode(nonce).decode()
         }
 
         return json.dumps(packet).encode()
-    '''
 
-"""
+
+    """
         Handles the process of voting in a session
     """
 
+    def handleVoteRequest(self, sessionId, candidate):
 
-def handleVoteRequest(self, sessionId, candidate):
-
-    packet = self.CreateVoteRequest(sessionId, candidate)
+        packet = self.createVoteRequest(sessionId, candidate)

@@ -12,6 +12,7 @@ from cerberus import Validator
 import os
 import binascii
 import bcrypt
+import base64
 
 class VotingServer:
 
@@ -520,7 +521,45 @@ class VotingServer:
         Return:
             Voting Info sent by client
     """
+    # def handleVotingRequestPacket2(self, packet):
+
+    #     keyLength = 512
+    #     digestLength = 32
+    #     nonceLength = 16
+
+    #     if len(packet) <= keyLength + digestLength + nonceLength:
+    #         raise InvalidPacket('Voting Request has length smaller than minimun possible packet')
+    
+    #     # Parse packet
+    #     encryptedKey = packet[-keyLength:]
+    #     packet = packet[:-keyLength]
+
+    #     nonce = packet[-nonceLength:]
+    #     packet = packet[:-nonceLength]
+
+    #     encryptedMessage = packet
+
+    #     # Decript and verify intregrity
+    #     symKey = self.decryptPacketWithServerPrivateKey(encryptedKey)
+    #     message = cripto.decryptMessageWithKeyAES(symKey, nonce, encryptedMessage)
+
+    #     digest = message[-digestLength:]
+    #     message = message[:-digestLength]
+
+    #     if not cripto.verifyDigest(message, digest):
+    #         raise InvalidPacket("Integrity verification failed")
+
+    #     votingInfoAsBytes = message
+    #     votingInfo = json.loads(votingInfoAsBytes.decode())
+
+    #     return votingInfo
+
     def handleVotingRequestPacket(self, packet):
+        packetAsDict = json.loads(packet.decode())
+        
+        nonce = base64.b64decode(packetAsDict['nonce'].encode())
+        encryptedKey = base64.b64decode(packetAsDict['encryptedKey'].encode())
+        encryptedPacket = base64.b64decode(packetAsDict['encryptedPacket'].encode())
 
         keyLength = 512
         digestLength = 32
@@ -529,33 +568,24 @@ class VotingServer:
         if len(packet) <= keyLength + digestLength + nonceLength:
             raise InvalidPacket('Voting Request has length smaller than minimun possible packet')
     
-        # Parse packet
-        encryptedKey = packet[-keyLength:]
-        packet = packet[:-keyLength]
-
-        nonce = packet[-nonceLength:]
-        packet = packet[:-nonceLength]
-
-        encryptedMessage = packet
-
-        # Decript and verify intregrity
         symKey = self.decryptPacketWithServerPrivateKey(encryptedKey)
-        message = cripto.decryptMessageWithKeyAES(symKey, nonce, encryptedMessage)
+        ByteJSONmessage = cripto.decryptMessageWithKeyAES(symKey, nonce, encryptedPacket)
+        messageAsDict = json.loads(ByteJSONmessage.decode())
 
-        digest = message[-digestLength:]
-        message = message[:-digestLength]
+        digest = messageAsDict['digest']
+        votingInfoAsBytes = messageAsDict['votingInfo']
 
-        if not cripto.verifyDigest(message, digest):
+        if not cripto.verifyDigest(votingInfoAsBytes, digest):
             raise InvalidPacket("Integrity verification failed")
 
-        votingInfoAsBytes = message
         votingInfo = json.loads(votingInfoAsBytes.decode())
 
         return votingInfo
 
 
     """
-        Validates if sent Voting packet contains a valid format
+        Validates if sent Voting packet contains a valid format.
+        It validates the token, the vote and the session ID.
 
         Args:
             votingInfo: Dictionary with voting information sent by client
