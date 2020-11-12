@@ -1,13 +1,14 @@
+import os
+import cripto
+import json
+from base64 import b64encode, b64decode
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography import exceptions
 from exceptions import InvalidPacket
 from VotingSession import VotingSession
-import os
-import cripto
-import json
-import base64
+from networking import ClientNetworkConnection
 
 """
         Request a verification for a session result
@@ -129,13 +130,17 @@ class VotingClient:
             password: A bytearray of the optional password that may have been used to encrypt the private key
     """
 
-    def __init__(self, clientPrivateKey, clientPublicKey, serverPublicKey, clientPassword=None):
+    def __init__(self, clientPrivateKey, clientPublicKey, serverPublicKey, clientPassword=None, host='localhost', port=9595):
 
         self.privateKey = serialization.load_pem_private_key(
             clientPrivateKey, password=clientPassword)
         self.publicKey = serialization.load_pem_public_key(clientPublicKey)
         self.serverPublicKey = serialization.load_pem_public_key(
             serverPublicKey)
+
+        self.serverHost = host
+        self.serverPort = port
+        self.token = None
 
     """
         Sign message with Client's Private Key
@@ -208,22 +213,138 @@ class VotingClient:
         symetricKey = cripto.generateSymmetricKey()
 
         message = {}
-        message['login'] = bytes(login, encoding='utf-8')
-        message['password'] = bytes(password, encoding='utf-8')
+        message['login'] = login
+        message['password'] = password
 
         json_data = json.dumps(message)
 
         encryptedMessage = cripto.encryptMessageWithKeyAES(
-            symetricKey, nonce, json_data)
+            symetricKey, 
+            nonce, 
+            json_data.encode()
+        )
+
         encryptedKey = cripto.encryptWithPublicKey(
-            self.serverPublicKey, symetricKey)
+            self.serverPublicKey, 
+            symetricKey
+        )
 
         pack = {}
-        pack['encryptedMessage'] = bytes(encryptedMessage, encoding='utf-8')
-        pack['encryptedKey'] = bytes(encryptedKey, encoding='utf-8')
-        pack['nonce'] = nonce
+        pack['encryptedMessage'] = b64encode(encryptedMessage).decode()
+        pack['encryptedKey'] = b64encode(encryptedKey).decode()
+        pack['nonce'] = b64encode(nonce).decode()
 
-        return json.dumps(pack)
+        packet = json.dumps(pack).encode()
+
+        return packet, symetricKey
+
+
+    """
+        Make initial request for login
+
+        Return: 
+            Packet for initiating login operation
+    """
+    def initiateLoginTransaction(self):
+
+        # Send Hello Message
+        initialRequest = {
+            'op': 'hello'
+        }        
+
+        return b'00' + json.dumps(initialRequest).encode()
+
+
+    """
+        Parse Response packet send by server
+
+        Args:
+            packet: Server response due to user authentication final step
+            symmetricKey: Key agreed to cipher communication
+
+        Returns:
+            Server response of login operation as JSON Object
+    """
+    def parseLoginResponse(self, packet, symmetricKey):
+
+        packetData = json.loads(packet)
+
+        nonce = b64decode(packetData['nonce'].encode())
+        encryptedMessage = b64decode(packetData['encryptedMessage'].encode())
+
+        messageAsBytes = cripto.decryptMessageWithKeyAES(
+            symmetricKey,
+            nonce,
+            encryptedMessage
+        )
+
+        messageData = json.loads(messageAsBytes)
+
+        # Decrypt data
+        signedDigest = b64decode(messageData['signedDigest'].encode())
+        digest = b64decode(messageData['digest'].encode())
+        statusMessageAsBytes = b64decode(messageData['message'].encode())
+
+        # Verify integrity and authentication
+        if not cripto.verifySignature(self.serverPublicKey, digest, signedDigest):
+            return False
+
+        if not cripto.verifyDigest(statusMessageAsBytes, digest):
+            return False
+
+        statusMessage = json.loads(statusMessageAsBytes)
+        return statusMessage
+
+
+    """
+        Log user in
+
+        Args:
+            login: String of user's login
+            password: String of user's password 
+
+        Returns:
+            Authenticate a user
+    """
+    def handleLoginRequest(self, login, password):
+
+        conn = ClientNetworkConnection(self.serverHost, self.serverPort)
+
+        # Initiate login asking for challenge from server
+        helloRequest = self.initiateLoginTransaction()
+        conn.send(helloRequest)
+        print(f"[LOGIN] Enviado request inicial: {helloRequest.decode()}")
+
+        # Parse message containing server's challenge
+        helloResponseAsBytes = conn.recv()
+        print(f"[LOGIN] Recebido nonce desafio: {helloResponseAsBytes.decode()}")
+
+
+        helloResponse = json.loads(helloResponseAsBytes)
+        challengeNonce = b64decode(helloResponse['nonce'].encode())
+
+        # Create Packet of User information to be authenticated
+        loginRequestPacket, symKey = self.cryptCredentials(login, password, challengeNonce)
+
+        # Send information to server and wait for response
+        print(f'[LOGIN] - Sending login information')
+        conn.send(loginRequestPacket)
+        
+        loginResponsePacket = conn.recv()
+        print(f'[LOGIN] - Recebendo status da operacao: {loginResponsePacket}')
+
+        conn.close()
+
+        responseData = self.parseLoginResponse(loginResponsePacket, symKey)
+        print(responseData)
+
+        if not responseData['status'].lower() == 'ok':
+            return False
+        
+        self.token = responseData['token'] 
+
+        return True
+        
 
     """
         Encrypt the "id_client" with a symetric key, sign this message with your private key
@@ -263,6 +384,7 @@ class VotingClient:
 
         return json.dumps(pack)
 
+
     """
         Create a vote request to vote in a session 
 
@@ -273,9 +395,7 @@ class VotingClient:
         Retruns:
             A byte array of the packet to be sent to the server
     """
-
-
-'''    def createVoteRequest(self, sessionID, candidate):
+    def createVoteRequest(self, sessionID, candidate):
 
         voteMessage = {
             'sessionID': sessionID,
@@ -307,19 +427,17 @@ class VotingClient:
         )
 
         packet = {
-            'encryptedPacket': base64.encode.encryptedPacket.hex(),
-            'encryptedKey': encryptedKey.hex(),
-            'nonce': nonce.hex()
+            'encryptedPacket': b64encode(encryptedPacket).decode(),
+            'encryptedKey': b64encode(encryptedKey).decode(),
+            'nonce': b64encode(nonce).decode(),
         }
 
         return json.dumps(packet).encode()
-    '''
+    
 
-"""
+    """
         Handles the process of voting in a session
     """
+    def handleVoteRequest(self, sessionId, candidate):
 
-
-def handleVoteRequest(self, sessionId, candidate):
-
-    packet = self.CreateVoteRequest(sessionId, candidate)
+        packet = self.CreateVoteRequest(sessionId, candidate)

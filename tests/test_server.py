@@ -133,7 +133,6 @@ class VotingServerTest(unittest.TestCase):
         # Send packet to server
         response = self.server.computeVoteRequest(packet)
 
-        self.assertTrue()
 
 
     # Test: Server.checkRequestRegister

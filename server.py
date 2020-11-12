@@ -11,7 +11,11 @@ from VotingSession import VotingSession
 from cerberus import Validator
 import os
 import binascii
+from base64 import b64encode, b64decode
 import bcrypt
+import socket
+import threading
+from networking import ServerNetworkConnetion
 
 class VotingServer:
 
@@ -25,7 +29,7 @@ class VotingServer:
             password: A bytearray of the optional password that may have been used to encrypt the private key
     """
 
-    def __init__(self, userPubKeys, usersInfoStorage, privateKey, publicKey, password=None):
+    def __init__(self, userPubKeys, usersInfoStorage, privateKey, publicKey, password=None, host='localhost', port=9595):
 
         self.privateKey = serialization.load_pem_private_key(
             privateKey, password=password)
@@ -41,6 +45,58 @@ class VotingServer:
 
         # User Session AuthToken
         self.usersSessions = {}
+        
+        self.host = host
+        self.port = port
+
+
+    """
+        Run Server
+    """
+    def run(self):
+
+        # Create Socket to listen for incoming connections
+        serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        serverSocket.bind((self.host, self.port))
+        
+        # TODO: Maybe let more connections
+        serverSocket.listen(4)
+
+        while True:
+
+            clientSocket, address = serverSocket.accept()
+            print(f'Accepted connection from {address} ')
+
+            conn = ServerNetworkConnetion(clientSocket)
+           
+            packet = conn.recv()
+            print(f"Received Operation: {packet[0:2].decode()}")
+            print(f"Received Packet: {packet[2:].decode()}")
+            print(f"===" * 5)
+
+            self.handlePacketOperation(conn, packet)
+            
+
+    """
+        Executes server operation according to the first 2 bytes of the received packet
+
+        Args:
+            conn: Socket connection established between Client and Server
+            packet: Packet sent to the server, containing operation info in the first 2 bytes
+
+    """
+    def handlePacketOperation(self, conn, packet):
+
+        operationHandler = {
+            '00': self.checkRequestLogin,
+            '01': self.checkRequestRegister,
+        }
+
+        operation = packet[0:2].decode()
+        packet = packet[2:]
+
+        handleFunction = operationHandler[operation]
+        handleFunction(conn, packet)
 
 
     """
@@ -625,20 +681,39 @@ class VotingServer:
 
     """
 
-    def checkRequestLogin(self, package):
+    def checkRequestLogin(self, conn, package):
 
-        # Decrypt package
+        # Decrypt package (Initial Hello Request)
         jsonPack = json.loads(package)
+        print(package.decode())
 
-        encryptedMessage = binascii.unhexlify(jsonPack['encryptedMessage'])
-        encryptedKey = binascii.unhexlify(jsonPack['encryptedKey'])
-        nonce = binascii.unhexlify(jsonPack['nonce'])
+        # SEND CHALLENGE
+        challengeNonce = cripto.generateNonce()
+        helloRespone = {
+            'nonce': b64encode(challengeNonce).decode()
+        }
+        helloResponeAsBytes = json.dumps(helloRespone).encode()
+        print(f'[LOGIN] - Sending Nonce Challenge: {helloResponeAsBytes.decode()}')
+        conn.send(helloResponeAsBytes)
+
+        # RECEIVE CLIENTE REQUEST
+        jsonPack = conn.recv()
+        jsonPack = json.loads(jsonPack)
+
+        encryptedMessage = b64decode(jsonPack['encryptedMessage'].encode())
+        encryptedKey = b64decode(jsonPack['encryptedKey'].encode())
+        nonce = b64decode(jsonPack['nonce'].encode())
         
         symmetricKey = cripto.decryptWithPrivateKey(
             self.privateKey, 
             encryptedKey
         )
-        decryptedMessage = cripto.decryptMessageWithKeyAES(symmetricKey, nonce, encryptedMessage)
+        
+        decryptedMessage = cripto.decryptMessageWithKeyAES(
+            symmetricKey, 
+            nonce, 
+            encryptedMessage
+        )
 
         jsonMessage = json.loads(decryptedMessage)
 
@@ -658,21 +733,38 @@ class VotingServer:
         message = {}
 
         if (validUser):
-            message['status'] = "Sucesso"
-            message['authToken'] = authToken
+            message['status'] = "ok"
+            message['token'] = authToken
         else:
             message['status'] = "Invalido"
         
-        jsonMessage = json.dumps(message)
-        signMessage = cripto.signMessage(self.privateKey, jsonMessage.encode())
+        jsonMessage = json.dumps(message).encode()
+        digest = cripto.createDigest(jsonMessage)
+        signedDigest = cripto.signMessage(self.privateKey, digest)
 
         messagePreJson = {}
-        messagePreJson['message'] = jsonMessage
-        messagePreJson['signMessage'] = signMessage.hex()
+        messagePreJson['message'] = b64encode(jsonMessage).decode()
+        messagePreJson['digest'] = b64encode(digest).decode()
+        messagePreJson['signedDigest'] = b64encode(signedDigest).decode()
         messageJson = json.dumps(messagePreJson)
 
-        # Cript Message
-        return cripto.encryptMessageWithKeyAES(symmetricKey, nonce, messageJson.encode())
+        serverNonce = cripto.generateNonce()
 
-        
+        confirmationPacket = cripto.encryptMessageWithKeyAES(
+            symmetricKey, 
+            serverNonce, 
+            messageJson.encode()
+        )
+
+        responsePacket = {
+            'nonce': b64encode(serverNonce).decode(),
+            'encryptedMessage': b64encode(confirmationPacket).decode()
+        }
+
+        responsePacketAsBytes = json.dumps(responsePacket).encode()
+
+        # SEND CONFIRMATION TO CLIENTp
+        print(f"[LOGIN] Sending login response: {responsePacket}")
+        conn.send(responsePacketAsBytes)
+        conn.close()        
 

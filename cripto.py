@@ -90,7 +90,8 @@ def verifySignature(publicKey, message, signature):
     matchesSignature = True
 
     # Load Client's Public Key Object
-    publicKey = serialization.load_pem_public_key(publicKey)
+    if isinstance(publicKey, bytearray):
+        publicKey = serialization.load_pem_public_key(publicKey)
 
     try:
         publicKey.verify(
