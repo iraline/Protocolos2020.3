@@ -9,6 +9,28 @@ import cripto
 import json
 import base64
 
+"""
+        Request a verification for a session result
+
+        Args:
+            The session ID
+        Returns:
+            The packet that should be sent in bytearray format
+    """
+
+
+def verifySession(self, sessionId):
+
+    nonce = cripto.generateNonce()
+    message = b"".join([nonce, sessionId.encode()])
+    macKey = cripto.generateMACKey()
+    tag = cripto.createTag(macKey, message)
+    message = b"".join([message, tag])
+    encryptedMacKey = cripto.encryptWithPublicKey(
+        self.serverPublicKey, macKey)
+    message = b"".join([message, encryptedMacKey])
+    return message, nonce, macKey
+
 
 class VotingClient:
 
@@ -261,7 +283,6 @@ class VotingClient:
 
         return json.dumps(pack)
 
-
     """
         Create a vote request to vote in a session 
 
@@ -272,7 +293,9 @@ class VotingClient:
         Retruns:
             A byte array of the packt to be sent to the server
     """
-    def createVoteRequest(self, sessionID, candidate):
+
+
+'''    def createVoteRequest(self, sessionID, candidate):
 
         voteMessage = {
             'sessionID': sessionID,
@@ -304,20 +327,19 @@ class VotingClient:
         )
 
         packet = {
-            'encryptedPacket': base64.encode encryptedPacket.hex()
+            'encryptedPacket': base64.encode.encryptedPacket.hex(),
             'encryptedKey': encryptedKey.hex(),
             'nonce': nonce.hex()
         }
 
         return json.dumps(packet).encode()
+    '''
 
-
-
-    """
+"""
         Handles the process of voting in a session
     """
-    def handleVoteRequest(self, sessionId, candidate):
 
-        packet = self.CreateVoteRequest(sessionId, candidate) 
 
-        
+def handleVoteRequest(self, sessionId, candidate):
+
+    packet = self.CreateVoteRequest(sessionId, candidate)
