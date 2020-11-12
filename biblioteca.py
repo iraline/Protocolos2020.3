@@ -119,6 +119,10 @@ class Biblioteca():
             message = self.server.createVotingSession(self, packet) 
             conn.send(message)
 
+        elif(operator == 4):
+            message = self.server.createVotingSession(self, packet)
+            conn.send(message)
+
         else:
             print("teste2")
 
@@ -249,3 +253,33 @@ class Biblioteca():
             return "Error: Invalid Tag"
 
         return receivedSessionId
+
+
+    def sendVoteSession(self, vote, sessionId):
+
+        con = ClientNetworkConnection(self.host, self.port)
+        s = con.getConnection()
+
+        voteRequest, symKey, nonce = self.client.createVoteRequest(sessionId, vote)
+        s.send(b"".join([b"04", voteRequest.encode()]))
+
+        encryptedByteAnswer = s.recv(1024)
+
+        # Deve receber um nonce, e uma assinatura do hash dele, encriptados.
+
+        byteAnswer = cripto.decryptMessageWithKeyAES(symKey, nonce, encryptedByteAnswer)
+
+        receivedNonce = byteAnswer[:16]
+        signedHash = byteAnswer[16:]
+        
+        if receivedNonce != nonce:
+            print("Invalid nonce")
+            return False
+
+        if not cripto.verifySignature(self.server.publicKey, cripto.createDigest(receivedNonce), signedHash):
+            print("Invalid tag")
+            return False
+        
+        else:
+            print("Your vote has been computed")
+            return True

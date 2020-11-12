@@ -590,8 +590,24 @@ class VotingServer:
 
         votingInfo = json.loads(votingInfoAsBytes.decode())
 
-        return votingInfo
 
+        if self.validateVotingInfo(votingInfo) and self.computeVoteRequest(votingInfo):
+            
+            succMsg = b"".join([b"succ", nonce])
+            succMsgHash = cripto.createDigest(succMsg)
+            signedSuccHash = cripto.signMessage(self.privateKey, succMsgHash)
+
+            succMsg = b"".join([succMsg, signedErrorHash])
+            return succMsg
+            
+
+        errorMsg = b"".join([b"fail", nonce])
+        errorMsgHash = cripto.createDigest(errorMsg)
+        signedErrorHash = cripto.signMessage(self.privateKey, errorMsgHash)
+
+        errorMsg = b"".join([errorMsg, signedErrorHash])
+        return errorMsg
+        
 
     """
         Validates if sent Voting packet contains a valid format.
@@ -638,9 +654,7 @@ class VotingServer:
             Computes client vote in that session and returns wheter the computation was
             successful or not. So it also returns a boolen
     """
-    def computeVoteRequest(self, packet):
-
-        votingInfo = self.handleVotingRequestPacket(packet)
+    def computeVoteRequest(self, votingInfo):
         
         if not self.validateVotingInfo(votingInfo):
             raise InvalidPacket
@@ -733,6 +747,8 @@ class VotingServer:
 
         return responsePacketAsBytes
 
+
+    def returnVotingConfirmation(self, packet)
 
     """
     """

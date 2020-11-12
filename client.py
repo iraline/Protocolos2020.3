@@ -387,7 +387,7 @@ class VotingClient:
             'nonce': b64encode(nonce).decode(),
         }
 
-        return json.dumps(packet).encode()
+        return json.dumps(packet).encode(), symKey, nonce
     
 
     """
