@@ -94,7 +94,7 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
         tag = packet[-tagSz:]
 
         if nonce != lastNonce:
-            raise InvalidPacket
+            raise InvalidPacket('Nonce não é igual ao ultimo')
 
         else:
             if cripto.verifyTag(HMACKey, b"".join([nonce, byteDumpedSession]), tag):
@@ -131,7 +131,7 @@ class VotingClient:
             Token: Should be a b64 or hex or a string. It will be assigned later.
     """
 
-    def __init__(self, clientPrivateKey, clientPublicKey, serverPublicKey, clientPassword=None, host='localhost', port=9595):
+    def __init__(self, clientPrivateKey, clientPublicKey, serverPublicKey, clientPassword=None):
 
         self.privateKey = serialization.load_pem_private_key(
             clientPrivateKey, password=clientPassword)
@@ -140,9 +140,6 @@ class VotingClient:
             serverPublicKey)
         self.token = None
 
-        self.serverHost = host
-        self.serverPort = port
-        self.token = None
 
     """
         Sign message with Client's Private Key
@@ -297,56 +294,6 @@ class VotingClient:
         statusMessage = json.loads(statusMessageAsBytes)
         return statusMessage
 
-
-    """
-        Log user in
-
-        Args:
-            login: String of user's login
-            password: String of user's password 
-
-        Returns:
-            Authenticate a user
-    """
-    def handleLoginRequest(self, login, password):
-
-        conn = ClientNetworkConnection(self.serverHost, self.serverPort)
-
-        # Initiate login asking for challenge from server
-        helloRequest = self.initiateLoginTransaction()
-        conn.send(helloRequest)
-        print(f"[LOGIN] Enviado request inicial: {helloRequest.decode()}")
-
-        # Parse message containing server's challenge
-        helloResponseAsBytes = conn.recv()
-        print(f"[LOGIN] Recebido nonce desafio: {helloResponseAsBytes.decode()}")
-
-
-        helloResponse = json.loads(helloResponseAsBytes)
-        challengeNonce = b64decode(helloResponse['nonce'].encode())
-
-        # Create Packet of User information to be authenticated
-        loginRequestPacket, symKey = self.cryptCredentials(login, password, challengeNonce)
-
-        # Send information to server and wait for response
-        print(f'[LOGIN] - Sending login information')
-        conn.send(loginRequestPacket)
-        
-        loginResponsePacket = conn.recv()
-        print(f'[LOGIN] - Recebendo status da operacao: {loginResponsePacket}')
-
-        conn.close()
-
-        responseData = self.parseLoginResponse(loginResponsePacket, symKey)
-        print(responseData)
-
-        if not responseData['status'].lower() == 'ok':
-            return False
-        
-        self.token = responseData['token'] 
-
-        return True
-        
 
     """
         Encrypt the "id_client" with a symetric key, sign this message with your private key

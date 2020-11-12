@@ -3,11 +3,10 @@ import cripto
 import server
 import client
 from threading import Thread
-
+from networking import ClientNetworkConnection, ServerNetworkConnetion
 from cryptography.hazmat.primitives import serialization
-
-# Create TCP/IP socket
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+import json
+from base64 import b64encode, b64decode
 
 
 class Biblioteca():
@@ -27,16 +26,32 @@ class Biblioteca():
             Return the object.
     """
 
-    def __init__(self, host, port, usersID, usersCredentials, serverPublicKey, serverPrivateKey):
+    def __init__(self, host, port, serverPublicKey, usersID=None, usersCredentials=None,  serverPrivateKey=None, clientPublicKey=None, clientPrivateKey=None):
 
         self.host = host
         self.port = port
-        self.usersID = usersID
-        self.usersCredentials = usersCredentials
-        self.serverPrivateKey = serialization.load_pem_private_key(
-            serverPrivateKey, None)
-        self.serverPublicKey = serialization.load_pem_public_key(
-            serverPublicKey)
+
+        self.serverPublicKey = serverPublicKey
+
+        if clientPublicKey is not None and clientPrivateKey is not None:
+            self.client = client.VotingClient(
+                clientPrivateKey=clientPrivateKey,
+                clientPublicKey=clientPublicKey,
+                serverPublicKey=serverPublicKey,
+                clientPassword=None
+            )
+
+        else: 
+            self.server = server.VotingServer(
+                usersCredentials,
+                usersID,
+                serverPrivateKey,
+                serverPublicKey,
+                None,
+                self.host,
+                self.port
+            )
+
 
     """
         Checks the result of a Session
@@ -76,14 +91,25 @@ class Biblioteca():
 
         Returns:
     """
-    def checkOperator(self, conn, cliente):
+    def checkOperator(self, conn):
 
-        msg = conn.recv(1024)
-        operator = msg[-1]
+        packet = conn.recv()
+        print(packet.decode())
+
+        operator = int(packet[0:2].decode())
+        packet = packet[2:]
+
+        print(f"Received Operation: {operator}")
+        print(f"Received Packet: {packet[2:].decode()}")
+        print(f"===" * 5)
 
         # Function checkSessionResult
-        if(operator == 1):
-            message = server.VotingServer.sendSessionResult(self, msg[:-1])
+
+        if (operator == 0): # Login Operation 
+            message = self._handleLoginClient(conn, packet)
+
+        elif(operator == 1):
+            message = self.server.sendSessionResult(self, msg[:-1])
             conn.send(message)
 
         elif(operator == 2):
@@ -92,26 +118,94 @@ class Biblioteca():
         else:
             print("teste2")
 
+        conn.close()
+        
+
+
     """
         Will accept the connection request sent by user
     """
     def listenClients(self):
 
-        try:
-            # Bind the socket to the port
-            access = (self.host, self.port)
-            s.bind(access)
-        except socket.error as e:
-            print(e)
-            exit(0)
+        # Create TCP/IP socket
+        serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        serverSocket.bind((self.host, self.port))
+        # s.setblocking(1) #Preventes timeout
 
         # Listen for incoming connections
-        s.listen(20)
+        serverSocket.listen(4)
 
         while True:
-
-            conn, addr = s.accept()  # Returns a socket objetct and an address
-           
-            s.setblocking(1) #Preventes timeout
+            clientSocket, addr = serverSocket.accept()  # Returns a socket objetct and an address
+            print(f'Accepted connection from {addr} ')
             
-        conn.close
+            conn = ServerNetworkConnetion(clientSocket)
+            self.checkOperator(conn)
+    
+
+    """
+        Log user in
+
+        Args:
+            login: String of user's login
+            password: String of user's password 
+
+        Returns:
+            Authenticate a user
+    """
+    def makeLoginRequest(self, login, password):
+
+        conn = ClientNetworkConnection(self.host, self.port)
+
+        # Initiate login asking for challenge from server
+        helloRequest = self.client.initiateLoginTransaction()
+        conn.send(helloRequest)
+        print(f"[LOGIN] Enviado request inicial: {helloRequest.decode()}")
+
+        # Parse message containing server's challenge
+        helloResponseAsBytes = conn.recv()
+        print(f"[LOGIN] Recebido nonce desafio: {helloResponseAsBytes.decode()}")
+
+        helloResponse = json.loads(helloResponseAsBytes)
+        challengeNonce = b64decode(helloResponse['nonce'].encode())
+
+        # Create Packet of User information to be authenticated
+        loginRequestPacket, symKey = self.client.cryptCredentials(login, password, challengeNonce)
+ 
+        # Send information to server and wait for response
+        print(f'[LOGIN] - Sending login information')
+        conn.send(loginRequestPacket)
+
+        loginResponsePacket = conn.recv()
+        print(f'[LOGIN] - Recebendo status da operacao: {loginResponsePacket}')
+
+        conn.close()
+
+        responseData = self.client.parseLoginResponse(loginResponsePacket, symKey)
+        print(responseData)
+
+        if not responseData['status'].lower() == 'ok':
+            return False
+        
+        token = responseData['token'] 
+        return token
+
+    
+    """
+    """
+    def _handleLoginClient(self, conn, packet):
+
+        # Decrypt package (Initial Hello Request)
+        jsonPack = json.loads(packet)
+        print(packet.decode())
+
+        # SEND CHALLENGE
+        challengePacket = self.server.createChallengePacket()
+        conn.send(challengePacket)
+        print("[LOGIN] - Send Challenge Nonce")
+
+        # RECEIVE CLIENTE REQUEST
+        loginInfoPacket = conn.recv()
+        loginResponse = self.server.checkRequestLogin(loginInfoPacket)
+
+        conn.send(loginResponse)

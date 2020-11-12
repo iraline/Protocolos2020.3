@@ -51,55 +51,6 @@ class VotingServer:
 
 
     """
-        Run Server
-    """
-    def run(self):
-
-        # Create Socket to listen for incoming connections
-        serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        serverSocket.bind((self.host, self.port))
-        
-        # TODO: Maybe let more connections
-        serverSocket.listen(4)
-
-        while True:
-
-            clientSocket, address = serverSocket.accept()
-            print(f'Accepted connection from {address} ')
-
-            conn = ServerNetworkConnetion(clientSocket)
-           
-            packet = conn.recv()
-            print(f"Received Operation: {packet[0:2].decode()}")
-            print(f"Received Packet: {packet[2:].decode()}")
-            print(f"===" * 5)
-
-            self.handlePacketOperation(conn, packet)
-            
-
-    """
-        Executes server operation according to the first 2 bytes of the received packet
-
-        Args:
-            conn: Socket connection established between Client and Server
-            packet: Packet sent to the server, containing operation info in the first 2 bytes
-
-    """
-    def handlePacketOperation(self, conn, packet):
-
-        operationHandler = {
-            '00': self.checkRequestLogin,
-            '01': self.checkRequestRegister,
-        }
-
-        operation = packet[0:2].decode()
-        packet = packet[2:]
-
-        handleFunction = operationHandler[operation]
-        handleFunction(conn, packet)
-
-
-    """
         Load JSON File containing user's ids and public keys
 
         Args:
@@ -697,6 +648,7 @@ class VotingServer:
 
         return hasSuccesfullyVoted
 
+
     """              
        Check if the credentials sent is valid or not.
     
@@ -709,26 +661,9 @@ class VotingServer:
             Encrypted json message package with status, authToken and nonce
 
     """
+    def checkRequestLogin(self, package):
 
-    def checkRequestLogin(self, conn, package):
-
-        # Decrypt package (Initial Hello Request)
         jsonPack = json.loads(package)
-        print(package.decode())
-
-        # SEND CHALLENGE
-        challengeNonce = cripto.generateNonce()
-        helloRespone = {
-            'nonce': b64encode(challengeNonce).decode()
-        }
-        helloResponeAsBytes = json.dumps(helloRespone).encode()
-        print(f'[LOGIN] - Sending Nonce Challenge: {helloResponeAsBytes.decode()}')
-        conn.send(helloResponeAsBytes)
-
-        # RECEIVE CLIENTE REQUEST
-        jsonPack = conn.recv()
-        jsonPack = json.loads(jsonPack)
-
         encryptedMessage = b64decode(jsonPack['encryptedMessage'].encode())
         encryptedKey = b64decode(jsonPack['encryptedKey'].encode())
         nonce = b64decode(jsonPack['nonce'].encode())
@@ -792,8 +727,16 @@ class VotingServer:
 
         responsePacketAsBytes = json.dumps(responsePacket).encode()
 
-        # SEND CONFIRMATION TO CLIENTp
-        print(f"[LOGIN] Sending login response: {responsePacket}")
-        conn.send(responsePacketAsBytes)
-        conn.close()        
+        return responsePacketAsBytes
 
+
+    """
+    """
+    def createChallengePacket(self):
+
+        challengeNonce = cripto.generateNonce()
+        helloRespone = {
+            'nonce': b64encode(challengeNonce).decode()
+        }
+        helloResponeAsBytes = json.dumps(helloRespone).encode()
+        return helloResponeAsBytes
