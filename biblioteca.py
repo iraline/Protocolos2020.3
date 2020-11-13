@@ -7,6 +7,7 @@ from networking import ClientNetworkConnection, ServerNetworkConnetion
 from cryptography.hazmat.primitives import serialization
 import json
 from base64 import b64encode, b64decode
+import _thread
 
 
 class Biblioteca():
@@ -133,7 +134,7 @@ class Biblioteca():
             print("teste2")
 
         conn.close()
-        
+        _thread.exit()  # Finish thread
 
 
     """
@@ -154,6 +155,8 @@ class Biblioteca():
             print(f'Accepted connection from {addr} ')
             
             conn = ServerNetworkConnetion(clientSocket)
+            _thread.start_new_thread(self.checkOperator, (conn))  # Create a new thread
+
             self.checkOperator(conn)
     
 
