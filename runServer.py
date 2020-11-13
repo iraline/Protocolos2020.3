@@ -14,7 +14,7 @@ def loadVotingServer():
                 9595,
                 publicKey.read(),
                 userInfoFilePath,
-                usersPubKeys, 
+                usersCredentials=usersPubKeys, 
                 serverPrivateKey=privateKey.read(), 
             )
 

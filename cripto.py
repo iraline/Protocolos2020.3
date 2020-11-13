@@ -126,7 +126,7 @@ def createTag(key, message):
     h = hmac.HMAC(key, hashes.SHA256())
 
     if isinstance(message, str):
-        message = str.encode(message)
+        message = message.encode()
 
     h.update(message)
 

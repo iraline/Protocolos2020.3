@@ -208,7 +208,7 @@ class VotingClient:
             The packet that should be sent in bytearray format
     """
 
-    def cryptCredentials(self, login, password, nonce):
+    def cryptLoginCredentials(self, login, password, nonce):
 
         symetricKey = cripto.generateSymmetricKey()
 
@@ -307,32 +307,97 @@ class VotingClient:
             The packet that should be sent in bytearray format
     """
 
-    def requestRegister(self, id_client):
+    def createClientIDRegisterPacket(self, id_client):
+
+        # Generate Keys from Master Key
+        msKey = cripto.generateMasterKey()
+        salt = cripto.generateSalt()
+        symmetricKey, symmetricHmac = cripto.generateKeysWithMS(msKey, salt)
+        
+        # User will sent packet with his id and signature
+        message = {}
+        message['userID'] = id_client
+
+        digest = cripto.createDigest(id_client)
+        message['digest'] = b64encode(digest).decode()
+
+        signedDigest = cripto.signMessage(self.privateKey, digest)
+        message['signedDigest'] = b64encode(signedDigest).decode()
+
+        jsonMsgEncrypted = json.dumps(message).encode()
 
         nonce = cripto.generateNonce()
-        msKey = cripto.generateMasterKey()
-
-        signId = cripto.signMessage(self.privateKey, id_client)
-
-        symmetricHmac = cripto.generateKeysWithMS(msKey, nonce)
-
-        symmetricKey = symmetricHmac[0]
-
-        message = {}
-        message['message'] = id_client  # bytes(id_client, encoding= 'utf-8')
-        message['hashMessage'] = signId  # bytes(signId, encoding= 'utf-8')
-        json_messageEncrypted = json.dumps(message)
-
         encryptedMessage = cripto.encryptMessageWithKeyAES(
-            symmetricKey, nonce, json_messageEncrypted)
-        criptedMsKey = cripto.encryptWithPublicKey(self.serverPublicKey, msKey)
+            symmetricKey, 
+            nonce, 
+            jsonMsgEncrypted
+        )
+
+        encryptedMsKey = cripto.encryptWithPublicKey(self.serverPublicKey, msKey)
 
         pack = {}
-        pack['encryptedMessage'] = encryptedMessage
-        pack['encryptedKey'] = criptedMsKey
-        pack['nonce'] = nonce
+        pack['encryptedMessage'] = b64encode(encryptedMessage).decode()
+        pack['encryptedKey'] = b64encode(encryptedMsKey).decode()
+        pack['nonce'] = b64encode(nonce).decode()
+        pack['salt'] = b64encode(salt).decode()
 
-        return json.dumps(pack)
+        return json.dumps(pack).encode(), symmetricKey, symmetricHmac
+
+    
+    """
+    """
+    def checkRegisterStatusResponse(self, packet, symKey, hmacKey):
+
+        packetData = json.loads(packet)
+
+        nonce = b64decode(packetData['nonce'].encode())
+        encryptedMessage = b64decode(packetData['encryptedMessage'].encode())
+
+        messageAsBytes = cripto.decryptMessageWithKeyAES(
+            symKey,
+            nonce,
+            encryptedMessage
+        )
+
+        message = json.loads(messageAsBytes)
+
+        status = message['status']
+        tag = b64decode(message['tag'].encode())
+        if not cripto.verifyTag(hmacKey, status.encode(), tag):
+            raise InvalidPacket
+
+        if message['status'].lower() != 'ok':
+            return False
+
+        return True
+
+
+    """
+    """
+    def cryptRegisterCredentials(self, login, password, symKey, hmacKey):
+
+        message = {}
+        message['login'] = login
+        message['password'] = password
+
+        json_data = json.dumps(message)
+
+        nonce = cripto.generateNonce()
+        encryptedMessage = cripto.encryptMessageWithKeyAES(
+            symKey, 
+            nonce, 
+            json_data.encode()
+        )
+
+        tag = cripto.createTag(hmacKey, encryptedMessage)
+
+        pack = {}
+        pack['encryptedMessage'] = b64encode(encryptedMessage).decode()
+        pack['tag'] = b64encode(tag).decode()
+        pack['nonce'] = b64encode(nonce).decode()
+
+        packet = json.dumps(pack).encode()
+        return packet
 
 
     """
@@ -390,10 +455,3 @@ class VotingClient:
         return json.dumps(packet).encode(), symKey, nonce
     
 
-    """
-        Handles the process of voting in a session
-    """
-
-    def handleVoteRequest(self, sessionId, candidate):
-
-        packet = self.createVoteRequest(sessionId, candidate)

@@ -118,18 +118,26 @@ class VotingServer:
     """
     def createUser(self, userID, username, password):
 
-        user = {}
-
-        user['userID'] = userID
-        user['username'] = username
+        newUser = {}
+        newUser['userID'] = userID
+        newUser['username'] = username
 
         if isinstance(password, str):
             password = password.encode()
 
         hashedPassword = bcrypt.hashpw(password, salt=bcrypt.gensalt())
-        user['password'] = hashedPassword
+        newUser['password'] = hashedPassword
 
-        return user
+        for user in self.users:
+            if userID == user.id:
+                return False
+            
+            if username == user.username:
+                return False 
+
+        
+        self.users.append(newUser)
+        return True
         
 
     """
@@ -186,6 +194,7 @@ class VotingServer:
     """
     def getUserPublicKey(self, userID):
         
+        print(userID)
         if userID not in self.userPubKeys:
             return None
             
@@ -457,69 +466,31 @@ class VotingServer:
             The packet that should be sent in bytearray format
     """
 
-    def checkRequestRegister(self, package):
+    def checkClientInfoRegisterRequest(self, userID, package, symmetricKey, macTag):
 
         # Decrypt package
         jsonPack = json.loads(package)
 
-        encryptedMessage = binascii.unhexlify(jsonPack['encryptedMessage'])
-        encryptedKey = binascii.unhexlify(jsonPack['encryptedKey'])
-        nonce = binascii.unhexlify(jsonPack['nonce'])
-        salt = binascii.unhexlify(jsonPack['salt'])
+        encryptedMessage = b64decode(jsonPack['encryptedMessage'].encode())
+        nonce = b64decode(jsonPack['nonce'].encode())
+        tag = b64decode(jsonPack['tag'].encode())
 
-        msKey = cripto.decryptWithPrivateKey(self.privateKey, encryptedKey)
-        derivateMs = cripto.generateKeysWithMS(msKey, salt)
-        symmetricKey = derivateMs[0]
-        macTag = derivateMs[1]
-
+        if not cripto.verifyTag(macTag, encryptedMessage, tag):
+            raise InvalidPacket
+        
         decryptedMessage = cripto.decryptMessageWithKeyAES(
             symmetricKey, 
             nonce, 
             encryptedMessage
         )
 
-        userInfoMsg = json.loads(decryptedMessage)
+        message = json.loads(decryptedMessage)
 
-        # Get the user information sent
-        userID = userInfoMsg['userID']
-        signedHashMessage = binascii.unhexlify(userInfoMsg['hashMessage'])
+        login = message['login']
+        password = message['password']
 
-        validPackage = False
-        
-        # Checks if the userID is allowed
-        if userID in self.userPubKeys:
-            
-            # Checks that the package has the user signature
-            validPackage = cripto.verifySignature(
-                self.userPubKeys[userID], 
-                cripto.createTag(macTag, userID), 
-                signedHashMessage
-            )
-
-            # And has integrity
-            # TODO: CHECK INTEGRITY
-            # if validPackage:
-                # validPackage = cripto.verifyTag(macTag, )
-
-        # Prepare the package to be sent
-        message = {}
-        message['status'] = validPackage
-        json_messageEncrypted = json.dumps(message).encode()
-
-        nonce = cripto.generateNonce()
-        encryptedMessage = cripto.encryptMessageWithKeyAES(
-            symmetricKey, 
-            nonce, 
-            json_messageEncrypted
-        )
-        messageHmac = cripto.createTag(macTag, encryptedMessage)
-
-        pack = {}
-        pack['encryptedMessage'] = encryptedMessage.hex()
-        pack['nonce'] = nonce.hex()
-        pack['tag'] = messageHmac.hex()
-
-        return json.dumps(pack)
+        self.createUser(userID, login, password)
+        return True
 
     
     """
@@ -758,3 +729,77 @@ class VotingServer:
         }
         helloResponeAsBytes = json.dumps(helloRespone).encode()
         return helloResponeAsBytes
+
+
+    
+    """
+    """
+    def parseClientIDRegisterRequest(self, packet):
+
+        packetData = json.loads(packet)
+
+        salt = b64decode(packetData['salt'].encode())
+        nonce = b64decode(packetData['nonce'].encode())
+        encryptedMasterKey = b64decode(packetData['encryptedKey'].encode())
+        encryptedMessage = b64decode(packetData['encryptedMessage'].encode())
+
+        masterKey = self.decryptPacketWithServerPrivateKey(encryptedMasterKey)
+
+        symKey, hmacKey = cripto.generateKeysWithMS(masterKey, salt)
+
+        messageAsBytes = cripto.decryptMessageWithKeyAES(
+            symKey,
+            nonce,
+            encryptedMessage
+        )
+
+        message = json.loads(messageAsBytes)
+
+        # Check integrity and signature
+        signedDigest = b64decode(message['signedDigest'].encode())
+        digest = b64decode(message['digest'].encode())
+        userID = message['userID']
+
+        if not self.getUserPublicKey(userID):
+            raise InvalidPacket
+
+        if not cripto.verifySignature(self.getUserPublicKey(userID), digest, signedDigest):
+            raise InvalidPacket
+
+        if not cripto.verifyDigest(userID, digest):
+            raise InvalidPacket
+        
+        return userID, symKey, hmacKey
+
+
+    """
+    """
+    def createStatusPacket(self, status, symKey, hmacKey):
+        
+        if status:
+            status = 'ok'
+        else:
+            status = 'invalido'
+
+        message = {
+            'status': status
+        } 
+        
+        tag = cripto.createTag(hmacKey, status)
+        message['tag'] = b64encode(tag).decode()
+
+        nonce = cripto.generateNonce()
+        encryptedMessage = cripto.encryptMessageWithKeyAES(
+            symKey,
+            nonce,
+            json.dumps(message).encode()
+        )
+
+        packet = {
+            'encryptedMessage': b64encode(encryptedMessage).decode(),
+            'nonce': b64encode(nonce).decode()
+        }
+
+        return json.dumps(packet).encode()
+
+        

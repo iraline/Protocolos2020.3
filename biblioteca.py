@@ -120,7 +120,7 @@ class Biblioteca():
             conn.send(message)
 
         elif(operator == 2):
-            print("teste1")
+            message = self._handleRegisterRequest(conn, packet)
 
         elif(operator == 3):
             message = self.server.createVotingSession(self, packet) 
@@ -160,6 +160,12 @@ class Biblioteca():
             self.checkOperator(conn)
     
 
+
+    ##############
+    ### LOGIN ####
+    ##############
+
+
     """
         Log user in
 
@@ -187,7 +193,7 @@ class Biblioteca():
         challengeNonce = b64decode(helloResponse['nonce'].encode())
 
         # Create Packet of User information to be authenticated
-        loginRequestPacket, symKey = self.client.cryptCredentials(login, password, challengeNonce)
+        loginRequestPacket, symKey = self.client.cryptLoginCredentials(login, password, challengeNonce)
  
         # Send information to server and wait for response
         print(f'[LOGIN] - Sending login information')
@@ -226,6 +232,7 @@ class Biblioteca():
         loginResponse = self.server.checkRequestLogin(loginInfoPacket)
 
         conn.send(loginResponse)
+<<<<<<< Updated upstream
         conn.close()
 
 
@@ -292,3 +299,70 @@ class Biblioteca():
         else:
             print("Your vote has been computed")
             return True
+=======
+
+
+
+    ##################
+    #### REGISTER ####
+    ##################
+
+    """
+    """
+    def makeRegisterRequest(self, userID, login, password):
+
+        conn = ClientNetworkConnection(self.host, self.port)
+
+        # Packet with register information
+        operationCode = b'02'
+        initialRegisterPacket, symKey, hmacKey = self.client.createClientIDRegisterPacket(userID)
+        conn.send(operationCode + initialRegisterPacket)
+
+        statusResponsePacket = conn.recv()
+        status = self.client.checkRegisterStatusResponse(
+            statusResponsePacket,
+            symKey,
+            hmacKey
+        )
+
+        if not status:
+            return status
+        
+        # Send user registration information
+        registerInfoPacket = self.client.cryptRegisterCredentials(login, password, symKey, hmacKey)
+        conn.send(registerInfoPacket)
+
+        statusResponsePacket = conn.recv()
+        status = self.client.checkRegisterStatusResponse(
+            statusResponsePacket,
+            symKey,
+            hmacKey
+        )
+
+        return status
+
+
+    """
+    """
+    def _handleRegisterRequest(self, conn, packet):
+
+        # Receive User ID Packet
+        userID, symKey, hmacKey = self.server.parseClientIDRegisterRequest(packet)
+
+        # Verify if id is usable
+        status = 'ok'
+        if not self.server.getUserPublicKey(userID):
+            status = 'invalido'
+        
+        statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
+        conn.send(statusPacket)
+        print("[REGISTER] - Send Status Packet")
+
+        # Get User Info (Login and Password)
+        registerInfoPacket = conn.recv()
+        status = self.server.checkClientInfoRegisterRequest(userID, registerInfoPacket, symKey, hmacKey)
+
+        print(self.server.users)
+        statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
+        conn.send(statusPacket)
+>>>>>>> Stashed changes
