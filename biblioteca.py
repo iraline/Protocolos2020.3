@@ -77,6 +77,9 @@ class Biblioteca():
 
         # Recieve the message from the server
         answer = conn.recv()
+        
+        #Treat the session result
+        number, answer = client.receiveSessionResult(message, nonce, macKey)  
 
         return answer.decode()
 
@@ -106,18 +109,14 @@ class Biblioteca():
         if (operator == 0): # Login Operation 
             self._handleLoginClient(conn, packet)
 
-        elif(operator == 1):
+        elif(operator == 1): # Check Session Result
 
             message = packet[0:-48]
-            nonce = packet[-48:-32]
-            macKey = packet[-32:]
-
+           
             #Get the session result
             message = self.server.sendSessionResult(packet)
-
-            #Treat the session result
-            number,answer = client.receiveSessionResult(message, nonce, macKey)  
-            conn.send(answer)
+   
+            conn.send(message)
 
         elif(operator == 2):
             print("teste1")
