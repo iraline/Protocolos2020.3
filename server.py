@@ -312,7 +312,8 @@ class VotingServer:
                 'type': 'list',
                 'empty': False,
                 'schema': {'type': 'string'},
-                'required': True
+                'required': True,
+                'maxlength': 999
             },
             'sessionMode': {
                 'type': 'string',
@@ -535,8 +536,10 @@ class VotingServer:
 
         nonceForEncryption = cripto.generateNonce()
 
+        print(self.validateVotingInfo(votingInfo))
         if self.validateVotingInfo(votingInfo) and self.computeVoteRequest(votingInfo):
             
+            print("Voto computado")
             succMsg = b"".join([b"succ", nonce])
             succMsgHash = cripto.createDigest(succMsg)
             signedSuccHash = cripto.signMessage(self.privateKey, succMsgHash)
@@ -545,7 +548,7 @@ class VotingServer:
             succMsg = cripto.encryptMessageWithKeyAES(symKey, nonceForEncryption, succMsg)
             return b"".join([nonceForEncryption, succMsg])
             
-        
+        print("Voto nao computado")
         errorMsg = b"".join([b"fail", nonce])
         errorMsgHash = cripto.createDigest(errorMsg)
         signedErrorHash = cripto.signMessage(self.privateKey, errorMsgHash)
@@ -569,22 +572,26 @@ class VotingServer:
 
         schema = {
             'sessionID': {'type': 'string', 'required': True},
-            'vote': {'type': 'string', 'required': True},
+            'vote': {'type': 'string', 'required': True, 'minlength': 3, 'maxlength': 3},
             'token': {'type': 'string', 'required': True}
         } 
 
+        print(votingInfo)
         # Validate if packet sent got all fields correctly 
         validator = Validator(schema)
         
         isPacketValid = validator.validate(votingInfo)
         if not isPacketValid:
+            print("Invalid Packet")
             return False
 
         session = self.sessions.get(votingInfo['sessionID'], None)
         if not session:
+            print("Invalid Session")
             return False
 
         if not self.validateToken(votingInfo['token']):
+            print("Invalid Token")
             return False
 
         return True
@@ -609,7 +616,7 @@ class VotingServer:
         userID = self.usersSessions[votingInfo['token']]
 
         hasSuccesfullyVoted = session.vote(userID, votingInfo['vote'])
-
+        print(f"hasSuccesfullyVoted {hasSuccesfullyVoted}")
         return hasSuccesfullyVoted
 
 
@@ -695,6 +702,13 @@ class VotingServer:
 
 
     """
+        Server must send a challenge for the client to sign.
+        This is done to avoid replay attacks could log a user in, 
+        even though the attacker could not get the token
+
+        Returns:
+            Packet containing the nonce-challenge 
+
     """
     def createChallengePacket(self):
 
@@ -708,6 +722,15 @@ class VotingServer:
 
     
     """
+        Parse packet containing user info (login, password) for registegin
+
+        Args:
+            packet: Packet containing the user ID and some fields for integrity check
+
+        Returns:
+            userID: User identifier
+            symKey: Symmetric key used to encrypt communication
+            hmacKey: Key for authentication and integrity
     """
     def parseClientIDRegisterRequest(self, packet):
 
@@ -748,6 +771,15 @@ class VotingServer:
 
 
     """
+        Create a packet for returning the status of the operation
+        
+        Args:
+            status: Wheter operation was succesful or not
+            symKey: Symmetric key used to encrypt communication
+            hmacKey: Key for authentication and integrity
+
+        Returns:
+            Packet with operation status
     """
     def createStatusPacket(self, status, symKey, hmacKey):
         

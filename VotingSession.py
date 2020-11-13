@@ -46,7 +46,11 @@ class VotingSession:
     def vote(self, userID, candidate):
 
         # Validating vote
-        if candidate not in self.candidates:
+
+        # To not give away the candidate length in packet transmissions
+        # It's expected to receive a 3 byte string containing the candidate number
+        candidate = int(candidate)
+        if len(self.candidates) <= candidate:
             return False
 
         if userID in self.usersThatVoted:
@@ -56,7 +60,8 @@ class VotingSession:
             return False
 
         # Adding voting
-        self.candidates[candidate] += 1
+        candidateKey = list(self.candidates.keys())[candidate]
+        self.candidates[candidateKey] += 1
         self.usersThatVoted.append(userID)
 
         return True

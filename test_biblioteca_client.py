@@ -23,7 +23,7 @@ token = Client.makeLoginRequest("zezinho@gmail.com", "seila")
 print(token)
 
 print("4o teste - VOTAR EM UMA SESSAO")
-boole = Client.sendVoteSession("2", "melhor numero inteiro de 1 a 3")
+boole = Client.sendVoteSession("000", "melhor numero inteiro de 1 a 3")
 print(boole)
 
 print("5o teste - Checar o resultado de uma sessao. Os candidatos devem ser printados se a operação ocorreu com sucesso")

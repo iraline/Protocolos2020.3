@@ -62,6 +62,7 @@ class VotingServerTest(unittest.TestCase):
         serverResponse = self.server.decryptPacketWithServerPrivateKey(cipherText)
         self.assertEqual(message, serverResponse)
 
+
     def test_can_create_voting_session(self):
 
         # Create packet for Voting Session creation
@@ -91,7 +92,6 @@ class VotingServerTest(unittest.TestCase):
         self.assertEqual(len(self.server.sessions), 0)
         sessionID = self.server.createVotingSession(packet)
         self.assertEqual(len(self.server.sessions), 1)
-        self.assertEqual(sessionID, sessionOptions['sessionName'])
 
         # Server will reject creating new session with same ID
         with self.assertRaises(InvalidPacket):
@@ -135,7 +135,7 @@ class VotingServerTest(unittest.TestCase):
 
 
 
-    # Test: Server.checkRequestRegister
+    # Test: Server.parseClientIDRegisterRequest
     def test_can_handle_a_register_request(self):
 
         userID = 'gabriel'
@@ -175,7 +175,7 @@ class VotingServerTest(unittest.TestCase):
         request = json.dumps(registerInfo).encode()
 
         # Checking server response
-        response = self.server.checkRequestRegister(request)
+        response, _, _ = self.server.parseClientIDRegisterRequest(request)
         responseJSON = json.loads(response)
 
         encryptedMessage = binascii.unhexlify(responseJSON['encryptedMessage'])

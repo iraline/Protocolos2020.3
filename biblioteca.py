@@ -67,8 +67,6 @@ class Biblioteca():
 
         conn = ClientNetworkConnection(self.host, self.port)
         
-        print(id_session)
-
         # Prepare the package to be sent
         message,nonce,macKey = client.verifySession(id_session, self.serverPublicKey)
 
@@ -223,6 +221,14 @@ class Biblioteca():
 
     
     """
+        Function for the server to handle the login flux
+
+        Args:
+            conn: Connection established with the client
+            packet: Initial packet sent by client of the login flux
+
+        Returns:
+            Logs a user in if authentication was succesfull
     """
     def _handleLoginClient(self, conn, packet):
 
@@ -275,6 +281,12 @@ class Biblioteca():
         return receivedSessionId
 
 
+    """
+        Make vote session flux, from the client perspective
+
+        Args:
+            vote: 'Candidate' 
+    """
     def sendVoteSession(self, vote, sessionId):
 
         con = ClientNetworkConnection(self.host, self.port)
@@ -301,9 +313,10 @@ class Biblioteca():
         if not cripto.verifySignature(serverPublicKey, cripto.createDigest(byteAnswer[:20]), signedHash):
             print("Invalid tag")
             return False
+
         
         else:
-            if status == "fail":
+            if status.decode() == "fail":
                 print("Your vote was not computed")
                 return False
             

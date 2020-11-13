@@ -348,6 +348,15 @@ class VotingClient:
 
     
     """
+        Check packet containing status of the register operation
+
+        Args:
+            packet: packet containing status of the register operation
+            symKey: Symmetric key used to encrypt communication
+            hmacKey: Key for authentication and integrity 
+
+        Returns:
+            Wether the packet contains a succesfull response or not
     """
     def checkRegisterStatusResponse(self, packet, symKey, hmacKey):
 
@@ -376,6 +385,17 @@ class VotingClient:
 
 
     """
+        Create a packet containing user information for register
+
+        Args:
+            (String)login: login sent by the client
+            (String)password: password sent by the client
+            (bytearray)symKey: Symmetric key used to encrypt communication
+            (bytearray)hmacKey: Key for authentication and integrity
+
+        Returns:
+            Create packet containing user information for register
+ 
     """
     def cryptRegisterCredentials(self, login, password, symKey, hmacKey):
 
@@ -456,7 +476,6 @@ class VotingClient:
         }
 
         print(nonce)
-
         return json.dumps(packet).encode(), symKey, nonce
     
 

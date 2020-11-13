@@ -9,5 +9,4 @@ svPrivK = open('./tests/keys/server_test_keys.pem', 'rb').read()
 
 Server = Biblioteca("localhost", 1234, svPubK, usersInfoStorage, usersCredentials, svPrivK)
 
-
 Server.listenClients()
