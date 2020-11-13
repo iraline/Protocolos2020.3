@@ -5,6 +5,10 @@ import socket
 """
 class BaseNetworkConnection:
 
+
+    def __init__(self):
+        self.conn = None
+
     """
         Sent a piece of information
 

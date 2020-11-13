@@ -64,21 +64,19 @@ class Biblioteca():
     """
     def checkSessionResult(self, id_session):
 
-        # Tag for the server identify the route
-        operator = b"1"
-
-        # Connect the socket with host and port
-        s.connect((self.host, self.port))
-
+        conn = ClientNetworkConnection(self.host, self.port)
+        
         # Prepare the package to be sent
-        message = client.verifySession(self, id_session)
-        message = b"".join([message, operator])
+        message,nonce,macKey = client.verifySession(self, id_session)
+
+        # Concatenate operator
+        message = b"".join([b"01",message,nonce,macKey])
 
         # Sends the message to the server
-        s.send(message)
+        conn.send(message)
 
         # Recieve the message from the server
-        answer = s.recv(1024)
+        answer = conn.recv()
 
         return answer.decode()
 
@@ -106,11 +104,20 @@ class Biblioteca():
         # Function checkSessionResult
 
         if (operator == 0): # Login Operation 
-            message = self._handleLoginClient(conn, packet)
+            self._handleLoginClient(conn, packet)
 
         elif(operator == 1):
-            message = self.server.sendSessionResult(self, msg[:-1])
-            conn.send(message)
+
+            message = packet[0:-48]
+            nonce = packet[-48:-32]
+            macKey = packet[-32:]
+
+            #Get the session result
+            message = self.server.sendSessionResult(packet)
+
+            #Treat the session result
+            number,answer = client.receiveSessionResult(message, nonce, macKey)  
+            conn.send(answer)
 
         elif(operator == 2):
             print("teste1")
@@ -213,7 +220,7 @@ class Biblioteca():
         loginResponse = self.server.checkRequestLogin(loginInfoPacket)
 
         conn.send(loginResponse)
-        conn.close
+        conn.close()
 
 
     """
