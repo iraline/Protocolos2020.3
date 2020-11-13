@@ -82,11 +82,6 @@ class Biblioteca():
         #Treat the session result
         number, answer = client.receiveSessionResult(answer, nonce, macKey)  
 
-        if number == -1:
-            print(answer)
-        elif number == 0:
-            print(answer)
-
         return answer
 
 
