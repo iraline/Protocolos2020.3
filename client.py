@@ -76,15 +76,28 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
 
         nonce = packet[errorSz:(errorSz + nonceSz)]
 
+        print(packet)
+
+
         if nonce != lastNonce:
             return securityErrorCode, "The packet that the server sent is invalid"
 
         else:
             if cripto.verifyTag(HMACKey, packet[:-tagSz], packet[-tagSz:]):
-                if packet[(errorSz + nonceSz):(errorSz + nonceSz + invalidTagSz)] == "Invalid Tag":
+                
+                if packet[(errorSz + nonceSz):(errorSz + nonceSz + invalidTagSz)] == b"Invalid Tag":
                     return securityErrorCode, "The last packet that you sent to server is invalid"
+                
+                elif packet[(errorSz + nonceSz):(errorSz + nonceSz + invalidTagSz)] == b"UnfinishedS":
+                    
+                    jsonList = packet[(errorSz + nonceSz + invalidTagSz):-tagSz].decode()
+
+                    listOfCandidates = json.loads(jsonList)
+                    return unfinishedSessionCode, listOfCandidates
+
                 else:
-                    return unfinishedSessionCode, "This session is still not finished"
+                    return unfinishedSessionCode, "This session doesn't exists"
+            
             else:
                 return securityErrorCode, "The packet that the server sent is invalid"
 
@@ -474,8 +487,8 @@ class VotingClient:
             'encryptedKey': b64encode(encryptedKey).decode(),
             'nonce': b64encode(nonce).decode(),
         }
+        
 
-        print(nonce)
         return json.dumps(packet).encode(), symKey, nonce
     
 

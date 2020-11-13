@@ -391,6 +391,7 @@ class VotingServer:
     def sendSessionResult(self, packet):
         status, nonce, sessionId, macKey = self.verifySessionTag(packet)
 
+
         if status == False:
             # In this case we should return a packet signaling that the tag was invalid
             message = b"".join([b"ERROR", nonce])
@@ -402,10 +403,10 @@ class VotingServer:
         elif not sessionId in self.sessions:
             # Therefore, we must send the packet signaling that the session isn't over yet
             message = b"".join([b"ERROR", nonce])
-            message = b"".join([message, b"Unfinished session"])
-            UnfinishedSessionPacket = b"".join(
+            message = b"".join([message, b"Not exists!"])
+            invalidSessionPacket = b"".join(
                 [message, cripto.createTag(macKey, message)])
-            return UnfinishedSessionPacket
+            return invalidSessionPacket
 
         else:
             if self.sessions[sessionId].sessionMode.lower() == "maxvotes":
@@ -429,9 +430,17 @@ class VotingServer:
                 else:
                     # Therefore, we must send the packet signaling that the session isn't over yet
                     message = b"".join([b"ERROR", nonce])
-                    message = b"".join([message, b"Unfinished session"])
-                    UnfinishedSessionPacket = b"".join(
-                        [message, cripto.createTag(macKey, message)])
+
+                    auxList = []
+                    i = 0
+                    for candidate in self.sessions[sessionId].candidates:
+                        auxList.append((candidate, i))
+                        i += 1
+
+                    dumpedList = json.dumps(auxList)
+                    message = b"".join([message, b"UnfinishedS", dumpedList.encode()])
+                    
+                    UnfinishedSessionPacket = b"".join([message, cripto.createTag(macKey, message)])
                     return UnfinishedSessionPacket
 
             else:
@@ -452,7 +461,16 @@ class VotingServer:
                 else:
                     # Therefore, we must send the packet signaling that the session isn't over yet
                     message = b"".join([b"ERROR", nonce])
-                    message = b"".join([message, b"Unfinished session"])
+
+                    auxList = []
+                    i = 0
+                    for candidate in self.sessions[sessionId]:
+                        auxList.append((candidate, i))
+                        i += 1
+
+                    dumpedList = json.dumps(auxList)
+                    message = b"".join([message, b"UnfinishedS", dumpedList.encode()])
+                    
                     UnfinishedSessionPacket = b"".join(
                         [message, cripto.createTag(macKey, message)])
                     return UnfinishedSessionPacket
