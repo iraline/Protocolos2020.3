@@ -127,7 +127,7 @@ class Biblioteca():
             conn.send(message)
 
         elif(operator == 2):
-            message = self._handleRegisterRequest(conn, packet)
+            self._handleRegisterRequest(conn, packet)
 
         elif(operator == 3):
             message = self.server.createVotingSession(packet) 
@@ -162,10 +162,8 @@ class Biblioteca():
             print(f'Accepted connection from {addr} ')
             
             conn = ServerNetworkConnetion(clientSocket)
-            _thread.start_new_thread(self.checkOperator, (conn))  # Create a new thread
+            _thread.start_new_thread(self.checkOperator, (conn,))  # Create a new thread
 
-            self.checkOperator(conn)
-    
 
 
     ##############
@@ -218,6 +216,9 @@ class Biblioteca():
             return False
         
         token = responseData['token'] 
+
+        self.client.token = token
+
         return token
 
     
@@ -226,7 +227,7 @@ class Biblioteca():
     def _handleLoginClient(self, conn, packet):
 
         # Decrypt package (Initial Hello Request)
-        jsonPack = json.loads(packet)
+        # jsonPack = json.loads(packet)
         print(packet.decode())
 
         # SEND CHALLENGE
@@ -277,31 +278,38 @@ class Biblioteca():
     def sendVoteSession(self, vote, sessionId):
 
         con = ClientNetworkConnection(self.host, self.port)
-        s = con.getConnection()
 
         voteRequest, symKey, nonce = self.client.createVoteRequest(sessionId, vote)
-        s.send(b"".join([b"04", voteRequest.encode()]))
+        con.send(b"".join([b"04", voteRequest]))
 
-        encryptedByteAnswer = s.recv(1024)
+        encryptedByteAnswer = con.recv()
+        nonceForEncryption = encryptedByteAnswer[:16]
+        encryptedByteAnswer = encryptedByteAnswer[16:]
 
-        # Deve receber um nonce, e uma assinatura do hash dele, encriptados.
+        byteAnswer = cripto.decryptMessageWithKeyAES(symKey, nonceForEncryption, encryptedByteAnswer)
 
-        byteAnswer = cripto.decryptMessageWithKeyAES(symKey, nonce, encryptedByteAnswer)
+        status = byteAnswer[:4]
+        receivedNonce = byteAnswer[4:20]
+        signedHash = byteAnswer[20:]
 
-        receivedNonce = byteAnswer[:16]
-        signedHash = byteAnswer[16:]
-        
+        serverPublicKey = serialization.load_pem_public_key(self.serverPublicKey)
+
         if receivedNonce != nonce:
             print("Invalid nonce")
             return False
 
-        if not cripto.verifySignature(self.server.publicKey, cripto.createDigest(receivedNonce), signedHash):
+        if not cripto.verifySignature(serverPublicKey, cripto.createDigest(byteAnswer[:20]), signedHash):
             print("Invalid tag")
             return False
         
         else:
-            print("Your vote has been computed")
-            return True
+            if status == "fail":
+                print("Your vote was not computed")
+                return False
+            
+            else:
+                print("Your vote has been computed")
+                return True
 
 
 

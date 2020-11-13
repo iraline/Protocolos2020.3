@@ -102,8 +102,6 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
 
                 sessionDict = json.loads(byteDumpedSession.decode())
 
-                print(sessionDict)
-
                 # Now, we have to convert the sessionDict to an object session
 
                 requestedSession = VotingSession(
@@ -440,8 +438,8 @@ class VotingClient:
         # signedDigest = cripto.signMessage(self.privateKey, digest)
 
         packet = {
-            'votingInfo': votingInfoAsBytes,
-            'digest': digest,
+            'votingInfo': b64encode(votingInfoAsBytes).decode(),
+            'digest': b64encode(digest).decode(),
             # 'signedDigest': signedDigest            
         }
 
@@ -456,6 +454,8 @@ class VotingClient:
             'encryptedKey': b64encode(encryptedKey).decode(),
             'nonce': b64encode(nonce).decode(),
         }
+
+        print(nonce)
 
         return json.dumps(packet).encode(), symKey, nonce
     

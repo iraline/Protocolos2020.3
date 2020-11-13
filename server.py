@@ -119,7 +119,7 @@ class VotingServer:
     def createUser(self, userID, username, password):
 
         newUser = {}
-        newUser['userID'] = userID
+        newUser['id'] = userID
         newUser['username'] = username
 
         if isinstance(password, str):
@@ -129,10 +129,13 @@ class VotingServer:
         newUser['password'] = hashedPassword
 
         for user in self.users:
-            if userID == user.id:
+
+            print(user)
+
+            if userID == user['id']:
                 return False
             
-            if username == user.username:
+            if username == user['username']:
                 return False 
 
         
@@ -194,7 +197,6 @@ class VotingServer:
     """
     def getUserPublicKey(self, userID):
         
-        print(userID)
         if userID not in self.userPubKeys:
             return None
             
@@ -542,6 +544,8 @@ class VotingServer:
         encryptedKey = b64decode(packetAsDict['encryptedKey'].encode())
         encryptedPacket = b64decode(packetAsDict['encryptedPacket'].encode())
 
+        print(nonce)
+
         keyLength = 512
         digestLength = 32
         nonceLength = 16
@@ -553,14 +557,15 @@ class VotingServer:
         ByteJSONmessage = cripto.decryptMessageWithKeyAES(symKey, nonce, encryptedPacket)
         messageAsDict = json.loads(ByteJSONmessage.decode())
 
-        digest = messageAsDict['digest']
-        votingInfoAsBytes = messageAsDict['votingInfo']
+        digest = b64decode(messageAsDict['digest'].encode())
+        votingInfoAsBytes = b64decode(messageAsDict['votingInfo'].encode())
 
         if not cripto.verifyDigest(votingInfoAsBytes, digest):
             raise InvalidPacket("Integrity verification failed")
 
         votingInfo = json.loads(votingInfoAsBytes.decode())
 
+        nonceForEncryption = cripto.generateNonce()
 
         if self.validateVotingInfo(votingInfo) and self.computeVoteRequest(votingInfo):
             
@@ -569,15 +574,17 @@ class VotingServer:
             signedSuccHash = cripto.signMessage(self.privateKey, succMsgHash)
 
             succMsg = b"".join([succMsg, signedSuccHash])
-            return succMsg
+            succMsg = cripto.encryptMessageWithKeyAES(symKey, nonceForEncryption, succMsg)
+            return b"".join([nonceForEncryption, succMsg])
             
-
+        
         errorMsg = b"".join([b"fail", nonce])
         errorMsgHash = cripto.createDigest(errorMsg)
         signedErrorHash = cripto.signMessage(self.privateKey, errorMsgHash)
 
         errorMsg = b"".join([errorMsg, signedErrorHash])
-        return errorMsg
+        errorMsg = cripto.encryptMessageWithKeyAES(symKey, nonceForEncryption, errorMsg)
+        return b"".join([nonceForEncryption, errorMsg])
         
 
     """
@@ -679,7 +686,7 @@ class VotingServer:
         # Check if the credentials are the same
         for user in self.users:
             if login == user['username'] and self.verifyUserPassword(password, user['password']):
-                authToken = self.generateAuthToken(user['userID'])
+                authToken = self.generateAuthToken(user['id'])
                 validUser = True
                 break
         
