@@ -1,4 +1,4 @@
-'''import socket
+import socket
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -14,8 +14,3 @@ while True:
     s.send(data.encode())
     ira = s.recv(1024)
     print(ira.decode())
-'''
-
-import biblioteca
-
-biblioteca.connectToServer('localhost',1234)
