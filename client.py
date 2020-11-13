@@ -21,7 +21,8 @@ from networking import ClientNetworkConnection
 
 def verifySession(sessionId, serverPublicKey):
 
-    serverPublicKey = serialization.load_pem_public_key(serverPublicKey)
+    if isinstance(serverPublicKey, bytes):
+        serverPublicKey = serialization.load_pem_public_key(serverPublicKey)
 
     nonce = cripto.generateNonce()
     message = b"".join([nonce, sessionId.encode()])

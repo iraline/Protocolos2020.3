@@ -27,9 +27,10 @@ class VotingSessionTest(unittest.TestCase):
 
         userID = '1' 
         candidate = 'Calabresa'
+        candidateNumber = '000'
 
         self.assertEqual(0, self.sessionMaxVotes.countTotalVotes())
-        hasVotedSuccessfully = self.sessionMaxVotes.vote(userID, candidate)
+        hasVotedSuccessfully = self.sessionMaxVotes.vote(userID, candidateNumber)
         self.assertTrue(hasVotedSuccessfully)
         self.assertEqual(1, self.sessionMaxVotes.countTotalVotes())
         self.assertEqual(1, self.sessionMaxVotes.candidates[candidate])
@@ -38,17 +39,20 @@ class VotingSessionTest(unittest.TestCase):
     def test_cannot_vote_twice(self):
 
         userID = '1' 
-        candidate = 'Calabresa'
+        candidate1 = 'Calabresa'
+        candidate1Number = '000'
         candidate2 = 'Mussarela'
+        candidate2Number = '001'
 
-        self.sessionMaxVotes.vote(userID, candidate)
 
-        hasVotedSuccessfully = self.sessionMaxVotes.vote(userID, candidate)
+        self.sessionMaxVotes.vote(userID, candidate1Number)
+
+        hasVotedSuccessfully = self.sessionMaxVotes.vote(userID, candidate1Number)
         self.assertFalse(hasVotedSuccessfully)
         self.assertEqual(1, self.sessionMaxVotes.countTotalVotes())
-        self.assertEqual(1, self.sessionMaxVotes.candidates[candidate])
+        self.assertEqual(1, self.sessionMaxVotes.candidates[candidate1])
         
-        hasVotedSuccessfully = self.sessionMaxVotes.vote(userID, candidate2)
+        hasVotedSuccessfully = self.sessionMaxVotes.vote(userID, candidate2Number)
         self.assertFalse(hasVotedSuccessfully)
         self.assertEqual(1, self.sessionMaxVotes.countTotalVotes())
         self.assertEqual(0, self.sessionMaxVotes.candidates[candidate2])
@@ -68,10 +72,11 @@ class VotingSessionTest(unittest.TestCase):
         
         userID = 'user'
         candidate = "Calabresa"
+        candidateNumber = "000"
         self.sessionMaxVotes.candidates[candidate] = self.MAX_VOTES
 
         self.assertTrue(self.sessionMaxVotes.hasFinished())
-        self.assertFalse(self.sessionMaxVotes.vote(userID, candidate))
+        self.assertFalse(self.sessionMaxVotes.vote(userID, candidateNumber))
         self.assertEqual(self.MAX_VOTES, self.sessionMaxVotes.countTotalVotes())
 
 

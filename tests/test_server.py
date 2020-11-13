@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import json
 import cripto
 from exceptions import InvalidPacket
-import binascii
+from base64 import b64decode, b64encode
 import bcrypt
 
 class VotingServerTest(unittest.TestCase):
@@ -98,43 +98,6 @@ class VotingServerTest(unittest.TestCase):
             self.server.createVotingSession(packet) 
 
 
-    def test_can_correctly_handle_a_voting_request(self):
-
-        # Create Session
-        pizzaSession = VotingSession(
-            sessionName='pizza',
-            candidates=['Calabresa', 'Mussarela'],
-            sessionMode='maxVotes',
-            maxVotes=20
-        )
-
-        userID = 'gabriel'
-        authToken = "lalala"
-        self.server.sessions['pizza'] = pizzaSession
-        self.server.usersSessions[authToken] = userID
-
-        # Create Voting Request
-        votingInfo = {
-            'sessionID': 'pizza',
-            'vote': 'Calabresa',
-            'token': authToken
-        }
-        votingInfoAsBytes = json.dumps(votingInfo).encode()
-        digest = cripto.createDigest(votingInfoAsBytes)
-        
-        symKey = cripto.generateSymmetricKey()
-        nonce = cripto.generateNonce()
-        encryptedMessage = cripto.encryptMessageWithKeyAES(symKey, nonce, votingInfoAsBytes + digest)
-        
-        encryptedKey = cripto.encryptWithPublicKey(self.serverPublicKey, symKey)
-
-        packet = b"".join([encryptedMessage, nonce, encryptedKey])
-
-        # Send packet to server
-        response = self.server.computeVoteRequest(packet)
-
-
-
     # Test: Server.parseClientIDRegisterRequest
     def test_can_handle_a_register_request(self):
 
@@ -178,7 +141,7 @@ class VotingServerTest(unittest.TestCase):
         response, _, _ = self.server.parseClientIDRegisterRequest(request)
         responseJSON = json.loads(response)
 
-        encryptedMessage = binascii.unhexlify(responseJSON['encryptedMessage'])
+        encryptedMessage = base.unhexlify(responseJSON['encryptedMessage'])
         nonce = binascii.unhexlify(responseJSON['nonce'])
         tag = binascii.unhexlify(responseJSON['tag'])
 
@@ -231,9 +194,9 @@ class VotingServerTest(unittest.TestCase):
         )
 
         packet = {
-            'encryptedMessage': encryptedMessage.hex(),
-            'encryptedKey': encryptedKey.hex(),
-            'nonce': nonce.hex(),
+            'encryptedMessage': b64encode(encryptedMessage).decode(),
+            'encryptedKey': b64encode(encryptedKey).decode(),
+            'nonce': b64encode(nonce).decode(),
         }
 
         packetJSONStr = json.dumps(packet) 

@@ -1,14 +1,27 @@
 import unittest
 from server import VotingServer
-from client import VotingClient
+from client import VotingClient, verifySession, createVotingSession, receiveSessionResult
 from VotingSession import VotingSession
 
 class ClientServerIntegrationTest(unittest.TestCase):
 
     def setUp(self):
 
+        with open('./tests/keys/server_test_keys.pem', 'rb') as serverPrivateKey: 
+            self.serverPrivateKeyAsBytes = serverPrivateKey.read()
+
+        with open('./tests/keys/server_test_keys.pub', 'rb') as serverPublicKey: 
+            self.serverPublicKeyAsBytes = serverPublicKey.read()
+            
+        with open('./tests/keys/client_test_keys.pem', 'rb') as clientPrivateKey: 
+            self.clientPrivateKeyAsBytes = clientPrivateKey.read()
+
+        with open('./tests/keys/client_test_keys.pub', 'rb') as clientPublicKey: 
+            self.clientPublicKeyAsBytes = clientPublicKey.read()
+
         self.server = self.loadVotingServer()
         self.client = self.loadVotingClient()
+
 
     # Read Server's Private and Public Keys to load VotingServer
     def loadVotingServer(self):
@@ -16,26 +29,26 @@ class ClientServerIntegrationTest(unittest.TestCase):
         usersPubKeys = 'usersPubKeys.json'
         userInfoFilePath = None
 
-        with open('./tests/keys/server_test_keys.pem', 'rb') as privateKey: 
-            with open('./tests/keys/server_test_keys.pub', 'rb') as publicKey: 
-                return VotingServer(
-                    usersPubKeys, 
-                    userInfoFilePath,
-                    privateKey.read(), 
-                    publicKey.read()
-                )
+        return VotingServer(
+            usersPubKeys, 
+            userInfoFilePath,
+            self.serverPrivateKeyAsBytes, 
+            self.serverPublicKeyAsBytes
+        )
 
     # Read Client's Private and Public Keys and Server's public key to load VotingClient
     def loadVotingClient(self):
-        with open('./tests/keys/client_test_keys.pem', 'rb') as privateKey: 
-            with open('./tests/keys/client_test_keys.pub', 'rb') as publicKey: 
-                with open('./tests/keys/server_test_keys.pub', 'rb') as serverPublicKey: 
-                    return VotingClient(privateKey.read(), publicKey.read(), serverPublicKey.read())
+
+        return VotingClient(
+            self.clientPrivateKeyAsBytes,
+            self.clientPublicKeyAsBytes,
+            self.serverPublicKeyAsBytes,
+        )
 
 
     def test_can_handle_a_verifySession_request(self):
 
-        pckg, nonce, mcKey = self.client.verifySession("concurso melhor pizza da minha rua")
+        pckg, nonce, mcKey = verifySession("concurso melhor pizza da minha rua", self.serverPublicKeyAsBytes)
         b, nonce, sid, mckey = self.server.verifySessionTag(pckg)
 
         self.assertTrue(b)
@@ -48,7 +61,8 @@ class ClientServerIntegrationTest(unittest.TestCase):
         sessionMode = 'maxVotes'
         maxVotes = 10
 
-        createSessionRequest = self.client.createVotingSession(
+        createSessionRequest = createVotingSession(
+            self.serverPublicKeyAsBytes,
             sessionName,
             candidates,
             sessionMode,
@@ -87,17 +101,17 @@ class ClientServerIntegrationTest(unittest.TestCase):
 
         # Teste quando a quantidade de votos desejada ainda não foi atingida
 
-        fstPacket, nonce, HMACKey = self.client.verifySession(sessionName)
+        fstPacket, nonce, HMACKey = verifySession(sessionName, self.serverPublicKeyAsBytes)
         sndPacket = self.server.sendSessionResult(fstPacket)
         
-        self.assertIsNotNone(self.client.receiveSessionResult(sndPacket, nonce, HMACKey))
-        print(self.client.receiveSessionResult(sndPacket, nonce, HMACKey))
+        self.assertIsNotNone(receiveSessionResult(sndPacket, nonce, HMACKey))
+        print(receiveSessionResult(sndPacket, nonce, HMACKey))
 
         self.server.sessions[sessionName].candidates["julio"] = 10
         self.server.sessions[sessionName].candidates["erick jacquin"] = 9
         
-        fstPacket, nonce, HMACKey = self.client.verifySession(sessionName)
+        fstPacket, nonce, HMACKey = verifySession(sessionName, self.serverPublicKeyAsBytes)
         sndPacket = self.server.sendSessionResult(fstPacket)
-        requestedSession = self.client.receiveSessionResult(sndPacket, nonce, HMACKey)
+        requestedSession = receiveSessionResult(sndPacket, nonce, HMACKey)
        
         # print(requestedSession.candidates)
