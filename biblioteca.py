@@ -67,11 +67,13 @@ class Biblioteca():
 
         conn = ClientNetworkConnection(self.host, self.port)
         
+        print(id_session)
+
         # Prepare the package to be sent
-        message,nonce,macKey = client.verifySession(self, id_session)
+        message,nonce,macKey = client.verifySession(id_session, self.serverPublicKey)
 
         # Concatenate operator
-        message = b"".join([b"01",message,nonce,macKey])
+        message = b"".join([b"01",message])
 
         # Sends the message to the server
         conn.send(message)
@@ -80,9 +82,14 @@ class Biblioteca():
         answer = conn.recv()
         
         #Treat the session result
-        number, answer = client.receiveSessionResult(message, nonce, macKey)  
+        number, answer = client.receiveSessionResult(answer, nonce, macKey)  
 
-        return answer.decode()
+        if number == -1:
+            print(answer)
+        elif number == 0:
+            print(answer)
+
+        return answer
 
 
     """
@@ -96,13 +103,13 @@ class Biblioteca():
     def checkOperator(self, conn):
 
         packet = conn.recv()
-        print(packet.decode())
+        # print(packet.decode())
 
         operator = int(packet[0:2].decode())
         packet = packet[2:]
 
         print(f"Received Operation: {operator}")
-        print(f"Received Packet: {packet[2:].decode()}")
+        # print(f"Received Packet: {packet[2:].decode()}")
         print(f"===" * 5)
 
         # Function checkSessionResult
@@ -123,11 +130,11 @@ class Biblioteca():
             message = self._handleRegisterRequest(conn, packet)
 
         elif(operator == 3):
-            message = self.server.createVotingSession(self, packet) 
+            message = self.server.createVotingSession(packet) 
             conn.send(message)
 
         elif(operator == 4):
-            message = self.server.createVotingSession(self, packet)
+            message = self.server.handleVotingRequestPacket(packet)
             conn.send(message)
 
         else:
@@ -232,7 +239,6 @@ class Biblioteca():
         loginResponse = self.server.checkRequestLogin(loginInfoPacket)
 
         conn.send(loginResponse)
-<<<<<<< Updated upstream
         conn.close()
 
 
@@ -251,18 +257,15 @@ class Biblioteca():
 
         tagSize = 32
 
-        con = ClientNetworkConnection(self.host, self.port)
-        s = con.getConnection()
+        conn = ClientNetworkConnection(self.host, self.port)
 
         message, hmacKey = client.createVotingSession(self.serverPublicKey, sessionId, candidates, sessionMode, quantity)
-        s.send(b"".join([b"03",message]))
+        conn.send(b"".join([b"03", message]))
         
-        byteAnswer = s.recv(1024)
-
-        answer = byteAnswer.decode()
+        byteAnswer = conn.recv()
         
-        tag = answer[-tagSize:]
-        receivedSessionId = tag[:-tagSize]
+        tag = byteAnswer[-tagSize:]
+        receivedSessionId = byteAnswer[:-tagSize].decode()
 
         if not cripto.verifyTag(hmacKey, receivedSessionId.encode(), tag):
             print("Invalid tag")
@@ -299,7 +302,6 @@ class Biblioteca():
         else:
             print("Your vote has been computed")
             return True
-=======
 
 
 
@@ -365,4 +367,3 @@ class Biblioteca():
         print(self.server.users)
         statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
         conn.send(statusPacket)
->>>>>>> Stashed changes

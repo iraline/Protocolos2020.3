@@ -19,15 +19,16 @@ from networking import ClientNetworkConnection
             The packet that should be sent in bytearray format
     """
 
-def verifySession(self, sessionId):
+def verifySession(sessionId, serverPublicKey):
+
+    serverPublicKey = serialization.load_pem_public_key(serverPublicKey)
 
     nonce = cripto.generateNonce()
     message = b"".join([nonce, sessionId.encode()])
     macKey = cripto.generateMACKey()
     tag = cripto.createTag(macKey, message)
     message = b"".join([message, tag])
-    encryptedMacKey = cripto.encryptWithPublicKey(
-        self.serverPublicKey, macKey)
+    encryptedMacKey = cripto.encryptWithPublicKey(serverPublicKey, macKey)
     message = b"".join([message, encryptedMacKey])
     return message, nonce, macKey
 
@@ -101,6 +102,8 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
 
                 sessionDict = json.loads(byteDumpedSession.decode())
 
+                print(sessionDict)
+
                 # Now, we have to convert the sessionDict to an object session
 
                 requestedSession = VotingSession(
@@ -132,6 +135,8 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
 """
 
 def createVotingSession(serverPublicKey, sessionName, candidates, sessionMode, maxVotes=500, duration=60):
+
+    serverPublicKey = serialization.load_pem_public_key(serverPublicKey)
 
     sessionInfo = {
         'sessionName': sessionName,
