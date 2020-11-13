@@ -19,7 +19,7 @@ class Biblioteca():
             (String)host: Host's name
             (Int)port: Port to connect to the server
             (Dictionary)usersID: User's id_client and public key.
-            (Dictionary)usersCredentials: User's login and password .
+            (Array)usersCredentials: User's login, password and id_client .
             (Bytearray)serverPublicKey: Server's public key.
             (Bytearray)serverPrivateKey: Server's private key.
 
@@ -42,7 +42,7 @@ class Biblioteca():
                 clientPassword=None
             )
 
-        else: 
+        else:
             self.server = server.VotingServer(
                 usersCredentials,
                 usersID,
@@ -53,7 +53,6 @@ class Biblioteca():
                 self.port
             )
 
-
     """
         Checks the result of a Session
 
@@ -63,24 +62,26 @@ class Biblioteca():
         Returns:
             String with result.
     """
+
     def checkSessionResult(self, id_session):
 
         conn = ClientNetworkConnection(self.host, self.port)
-        
+
         # Prepare the package to be sent
-        message,nonce,macKey = client.verifySession(id_session, self.serverPublicKey)
+        message, nonce, macKey = client.verifySession(
+            id_session, self.serverPublicKey)
 
         # Concatenate operator
-        message = b"".join([b"01",message])
+        message = b"".join([b"01", message])
 
         # Sends the message to the server
         conn.send(message)
 
         # Recieve the message from the server
         answer = conn.recv()
-        
-        #Treat the session result
-        number, answer = client.receiveSessionResult(answer, nonce, macKey)  
+
+        # Treat the session result
+        number, answer = client.receiveSessionResult(answer, nonce, macKey)
 
         if number == -1:
             print(answer)
@@ -88,7 +89,6 @@ class Biblioteca():
             print(answer)
 
         return answer
-
 
     """
         Checks the received operator and forwards to the correct route.
@@ -98,6 +98,7 @@ class Biblioteca():
 
         Returns:
     """
+
     def checkOperator(self, conn):
 
         packet = conn.recv()
@@ -112,23 +113,23 @@ class Biblioteca():
 
         # Function checkSessionResult
 
-        if (operator == 0): # Login Operation 
+        if (operator == 0):  # Login Operation
             self._handleLoginClient(conn, packet)
 
-        elif(operator == 1): # Check Session Result
+        elif(operator == 1):  # Check Session Result
 
             message = packet[0:-48]
-           
-            #Get the session result
+
+            # Get the session result
             message = self.server.sendSessionResult(packet)
-   
+
             conn.send(message)
 
         elif(operator == 2):
             self._handleRegisterRequest(conn, packet)
 
         elif(operator == 3):
-            message = self.server.createVotingSession(packet) 
+            message = self.server.createVotingSession(packet)
             conn.send(message)
 
         elif(operator == 4):
@@ -141,10 +142,10 @@ class Biblioteca():
         conn.close()
         _thread.exit()  # Finish thread
 
-
     """
         Will accept the connection request sent by user
     """
+
     def listenClients(self):
 
         # Create TCP/IP socket
@@ -156,18 +157,17 @@ class Biblioteca():
         serverSocket.listen(4)
 
         while True:
-            clientSocket, addr = serverSocket.accept()  # Returns a socket objetct and an address
+            # Returns a socket objetct and an address
+            clientSocket, addr = serverSocket.accept()
             print(f'Accepted connection from {addr} ')
-            
+
             conn = ServerNetworkConnetion(clientSocket)
-            _thread.start_new_thread(self.checkOperator, (conn,))  # Create a new thread
-
-
+            _thread.start_new_thread(
+                self.checkOperator, (conn,))  # Create a new thread
 
     ##############
     ### LOGIN ####
     ##############
-
 
     """
         Log user in
@@ -179,6 +179,7 @@ class Biblioteca():
         Returns:
             Authenticate a user
     """
+
     def makeLoginRequest(self, login, password):
 
         conn = ClientNetworkConnection(self.host, self.port)
@@ -190,14 +191,16 @@ class Biblioteca():
 
         # Parse message containing server's challenge
         helloResponseAsBytes = conn.recv()
-        print(f"[LOGIN] Recebido nonce desafio: {helloResponseAsBytes.decode()}")
+        print(
+            f"[LOGIN] Recebido nonce desafio: {helloResponseAsBytes.decode()}")
 
         helloResponse = json.loads(helloResponseAsBytes)
         challengeNonce = b64decode(helloResponse['nonce'].encode())
 
         # Create Packet of User information to be authenticated
-        loginRequestPacket, symKey = self.client.cryptLoginCredentials(login, password, challengeNonce)
- 
+        loginRequestPacket, symKey = self.client.cryptLoginCredentials(
+            login, password, challengeNonce)
+
         # Send information to server and wait for response
         print(f'[LOGIN] - Sending login information')
         conn.send(loginRequestPacket)
@@ -207,19 +210,19 @@ class Biblioteca():
 
         conn.close()
 
-        responseData = self.client.parseLoginResponse(loginResponsePacket, symKey)
+        responseData = self.client.parseLoginResponse(
+            loginResponsePacket, symKey)
         print(responseData)
 
         if not responseData['status'].lower() == 'ok':
             return False
-        
-        token = responseData['token'] 
+
+        token = responseData['token']
 
         self.client.token = token
 
         return token
 
-    
     """
         Function for the server to handle the login flux
 
@@ -230,6 +233,7 @@ class Biblioteca():
         Returns:
             Logs a user in if authentication was succesfull
     """
+
     def _handleLoginClient(self, conn, packet):
 
         # Decrypt package (Initial Hello Request)
@@ -248,7 +252,6 @@ class Biblioteca():
         conn.send(loginResponse)
         conn.close()
 
-
     """
         Request the criation of a voting session
 
@@ -256,8 +259,7 @@ class Biblioteca():
             sessionId: A string
             candidates: A list of candidates (list of strings)
             sessionMode: A string "duration" or "maxVotes"
-            maxVotes: An integer
-            duration: An integer representing the minutes of duration
+            quantity: An integer representing the minutes of duration ou the maximum votes
     """
 
     def createVotingSession(self, sessionId, candidates, sessionMode, quantity):
@@ -266,11 +268,12 @@ class Biblioteca():
 
         conn = ClientNetworkConnection(self.host, self.port)
 
-        message, hmacKey = client.createVotingSession(self.serverPublicKey, sessionId, candidates, sessionMode, quantity)
+        message, hmacKey = client.createVotingSession(
+            self.serverPublicKey, sessionId, candidates, sessionMode, quantity)
         conn.send(b"".join([b"03", message]))
-        
+
         byteAnswer = conn.recv()
-        
+
         tag = byteAnswer[-tagSize:]
         receivedSessionId = byteAnswer[:-tagSize].decode()
 
@@ -280,31 +283,34 @@ class Biblioteca():
 
         return receivedSessionId
 
-
     """
         Make vote session flux, from the client perspective
 
         Args:
             vote: 'Candidate' 
     """
+
     def sendVoteSession(self, vote, sessionId):
 
         con = ClientNetworkConnection(self.host, self.port)
 
-        voteRequest, symKey, nonce = self.client.createVoteRequest(sessionId, vote)
+        voteRequest, symKey, nonce = self.client.createVoteRequest(
+            sessionId, vote)
         con.send(b"".join([b"04", voteRequest]))
 
         encryptedByteAnswer = con.recv()
         nonceForEncryption = encryptedByteAnswer[:16]
         encryptedByteAnswer = encryptedByteAnswer[16:]
 
-        byteAnswer = cripto.decryptMessageWithKeyAES(symKey, nonceForEncryption, encryptedByteAnswer)
+        byteAnswer = cripto.decryptMessageWithKeyAES(
+            symKey, nonceForEncryption, encryptedByteAnswer)
 
         status = byteAnswer[:4]
         receivedNonce = byteAnswer[4:20]
         signedHash = byteAnswer[20:]
 
-        serverPublicKey = serialization.load_pem_public_key(self.serverPublicKey)
+        serverPublicKey = serialization.load_pem_public_key(
+            self.serverPublicKey)
 
         if receivedNonce != nonce:
             print("Invalid nonce")
@@ -314,31 +320,36 @@ class Biblioteca():
             print("Invalid tag")
             return False
 
-        
         else:
             if status.decode() == "fail":
                 print("Your vote was not computed")
                 return False
-            
+
             else:
                 print("Your vote has been computed")
                 return True
-
-
 
     ##################
     #### REGISTER ####
     ##################
 
+
     """
+          Register a new user in the system. Checks if id_client is valid to register. If sucess, return 1.
+          Args:
+              userId: id_client in a String format
+              login: User's login in a String format
+              password: User's password in a String format
     """
+
     def makeRegisterRequest(self, userID, login, password):
 
         conn = ClientNetworkConnection(self.host, self.port)
 
         # Packet with register information
         operationCode = b'02'
-        initialRegisterPacket, symKey, hmacKey = self.client.createClientIDRegisterPacket(userID)
+        initialRegisterPacket, symKey, hmacKey = self.client.createClientIDRegisterPacket(
+            userID)
         conn.send(operationCode + initialRegisterPacket)
 
         statusResponsePacket = conn.recv()
@@ -350,9 +361,10 @@ class Biblioteca():
 
         if not status:
             return status
-        
+
         # Send user registration information
-        registerInfoPacket = self.client.cryptRegisterCredentials(login, password, symKey, hmacKey)
+        registerInfoPacket = self.client.cryptRegisterCredentials(
+            login, password, symKey, hmacKey)
         conn.send(registerInfoPacket)
 
         statusResponsePacket = conn.recv()
@@ -364,26 +376,29 @@ class Biblioteca():
 
         return status
 
+    """
+        Is used only for the 'biblioteca.py'.     
+    """
 
-    """
-    """
     def _handleRegisterRequest(self, conn, packet):
 
         # Receive User ID Packet
-        userID, symKey, hmacKey = self.server.parseClientIDRegisterRequest(packet)
+        userID, symKey, hmacKey = self.server.parseClientIDRegisterRequest(
+            packet)
 
         # Verify if id is usable
         status = 'ok'
         if not self.server.getUserPublicKey(userID):
             status = 'invalido'
-        
+
         statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
         conn.send(statusPacket)
         print("[REGISTER] - Send Status Packet")
 
         # Get User Info (Login and Password)
         registerInfoPacket = conn.recv()
-        status = self.server.checkClientInfoRegisterRequest(userID, registerInfoPacket, symKey, hmacKey)
+        status = self.server.checkClientInfoRegisterRequest(
+            userID, registerInfoPacket, symKey, hmacKey)
 
         print(self.server.users)
         statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
