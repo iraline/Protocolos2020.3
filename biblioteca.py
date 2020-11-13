@@ -60,7 +60,7 @@ class Biblioteca():
             (String)id_session: Session Unique identifier.
 
         Returns:
-            String with result.
+            String with result, a list of candidates (if the session is not over yet) or an error message.
     """
 
     def checkSessionResult(self, id_session):
@@ -86,12 +86,14 @@ class Biblioteca():
         return answer
 
     """
-        Checks the received operator and forwards to the correct route.
+        Checks the received operator and forwards to the correct route to the server
+        be able to handle with the current packet.
 
         Args:
             (Socket Object)conn: Object with the connection to client.
 
         Returns:
+            Nothing
     """
 
     def checkOperator(self, conn):
@@ -201,13 +203,10 @@ class Biblioteca():
         conn.send(loginRequestPacket)
 
         loginResponsePacket = conn.recv()
-        print(f'[LOGIN] - Recebendo status da operacao: {loginResponsePacket}')
 
         conn.close()
 
-        responseData = self.client.parseLoginResponse(
-            loginResponsePacket, symKey)
-        print(responseData)
+        responseData = self.client.parseLoginResponse(loginResponsePacket, symKey)
 
         if not responseData['status'].lower() == 'ok':
             return False
@@ -233,7 +232,6 @@ class Biblioteca():
 
         # Decrypt package (Initial Hello Request)
         # jsonPack = json.loads(packet)
-        print(packet.decode())
 
         # SEND CHALLENGE
         challengePacket = self.server.createChallengePacket()
@@ -283,6 +281,9 @@ class Biblioteca():
 
         Args:
             vote: 'Candidate' 
+            sessionId: The name of the session
+        Returns:
+            True if the vote has been computed, else it returns false.
     """
 
     def sendVoteSession(self, vote, sessionId):
@@ -395,6 +396,5 @@ class Biblioteca():
         status = self.server.checkClientInfoRegisterRequest(
             userID, registerInfoPacket, symKey, hmacKey)
 
-        print(self.server.users)
         statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
         conn.send(statusPacket)

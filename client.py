@@ -53,7 +53,7 @@ def verifySession(sessionId, serverPublicKey):
         Second value:
 
             if status == -1: A string signaling an error
-            if status ==  0: A string signaling an error
+            if status ==  0: A list of candidates
             if status ==  1: A session object
 """
 

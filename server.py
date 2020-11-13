@@ -130,7 +130,6 @@ class VotingServer:
 
         for user in self.users:
 
-            print(user)
 
             if userID == user['id']:
                 return False
@@ -380,7 +379,8 @@ class VotingServer:
 
 
     """
-    Returns session result if the end condition is true
+    Returns session result if the end condition is true, else if it the session exists return the list of candidates.
+    Else, it will return an error packet.
 
     Args:
         The packet sent from the client method "client.verifySession()"
@@ -531,7 +531,6 @@ class VotingServer:
         encryptedKey = b64decode(packetAsDict['encryptedKey'].encode())
         encryptedPacket = b64decode(packetAsDict['encryptedPacket'].encode())
 
-        print(nonce)
 
         keyLength = 512
         digestLength = 32
@@ -594,7 +593,6 @@ class VotingServer:
             'token': {'type': 'string', 'required': True}
         } 
 
-        print(votingInfo)
         # Validate if packet sent got all fields correctly 
         validator = Validator(schema)
         

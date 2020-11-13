@@ -14,8 +14,8 @@ print("1o teste- Criar uma sessão. O id da sessao criada deve ser printado se a
 idzinho = Client.createVotingSession("melhor numero inteiro de 1 a 3", ["1", "2", "3"], "maxVotes", 1)
 print(idzinho)
 
-sessao = Client.checkSessionResult("melhor numero inteiro de 1 a 3")
-print(sessao)
+listaDeCandidatos = Client.checkSessionResult("melhor numero inteiro de 1 a 3")
+print(listaDeCandidatos)
 
 print("2o teste - Criar a conta de um cliente. True deve ser printado caso tudo ocorra como esperado")
 status = Client.makeRegisterRequest("zezinho", "zezinho@gmail.com", "seila")
@@ -23,9 +23,8 @@ print(status)
 
 print("3o teste - Efetuar o login de um cliente")
 token = Client.makeLoginRequest("zezinho@gmail.com", "seila")
-print(token)
 
-print("4o teste - VOTAR EM UMA SESSAO")
+print("4o teste - VOTAR EM UMA SESSAO. True deve ser printado caso o voto tenha sido computado com sucesso")
 boole = Client.sendVoteSession("000", "melhor numero inteiro de 1 a 3")
 print(boole)
 
