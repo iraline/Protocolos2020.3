@@ -1,5 +1,5 @@
 import unittest
-from client import VotingClient
+from client import VotingClient, createVotingSession, verifySession
 import cripto
 from cryptography.hazmat.primitives import serialization
 from cryptography.exceptions import InvalidSignature
@@ -21,10 +21,16 @@ class VotingClientTest(unittest.TestCase):
         with open('./tests/keys/client_test_keys.pub', 'rb') as clientPublicKey: 
             self.clientPublicKey = serialization.load_pem_public_key(clientPublicKey.read())
         
-        # Client's Public Key
+        # Server's private Key
         with open('./tests/keys/server_test_keys.pem', 'rb') as serverPrivateKey: 
             self.serverPrivateKey = serialization.load_pem_private_key(serverPrivateKey.read(), password=None)
         
+        # Server's public Key
+        with open('./tests/keys/server_test_keys.pub', 'rb') as serverPublicKey: 
+            self.serverPublicKeyAsBytes = serverPublicKey.read()
+            self.serverPublickKey = serialization.load_pem_public_key(self.serverPublicKeyAsBytes)
+          
+
     # Read Client's Private and Public Keys and Server's public key to load VotingClient
     def loadVotingClient(self):
 
@@ -61,7 +67,7 @@ class VotingClientTest(unittest.TestCase):
     def test_can_request_a_session_verification(self):
 
         sessionID = 'mySessionID'
-        request, _ , _ = self.client.verifySession(sessionID)
+        request, _ , _ = verifySession(sessionID, self.serverPublicKeyAsBytes)
 
         # Parse Packet
         encrypetedMacKeyLength = 512
@@ -83,7 +89,7 @@ class VotingClientTest(unittest.TestCase):
         self.assertTrue(cripto.verifyTag(macKey, message, tag))
 
         # Test if it generates different nonces
-        request2 = self.client.verifySession(sessionID)
+        request2 = verifySession(sessionID, self.serverPublicKeyAsBytes)
         nonce2 = request2[:nonceLength]
 
         self.assertNotEqual(nonce, nonce2)
@@ -97,7 +103,8 @@ class VotingClientTest(unittest.TestCase):
         sessionMode = 'maxVotes'
         maxVotes = 1
 
-        requestPacket = self.client.createVotingSession(
+        requestPacket, _ = createVotingSession(
+            self.serverPublicKeyAsBytes,
             sessionName,
             candidates,
             sessionMode,
