@@ -76,9 +76,6 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
 
         nonce = packet[errorSz:(errorSz + nonceSz)]
 
-        print(packet)
-
-
         if nonce != lastNonce:
             return securityErrorCode, "The packet that the server sent is invalid"
 
