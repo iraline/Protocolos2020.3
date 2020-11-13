@@ -504,39 +504,7 @@ class VotingServer:
         Return:
             Voting Info sent by client
     """
-    # def handleVotingRequestPacket2(self, packet):
-
-    #     keyLength = 512
-    #     digestLength = 32
-    #     nonceLength = 16
-
-    #     if len(packet) <= keyLength + digestLength + nonceLength:
-    #         raise InvalidPacket('Voting Request has length smaller than minimun possible packet')
     
-    #     # Parse packet
-    #     encryptedKey = packet[-keyLength:]
-    #     packet = packet[:-keyLength]
-
-    #     nonce = packet[-nonceLength:]
-    #     packet = packet[:-nonceLength]
-
-    #     encryptedMessage = packet
-
-    #     # Decript and verify intregrity
-    #     symKey = self.decryptPacketWithServerPrivateKey(encryptedKey)
-    #     message = cripto.decryptMessageWithKeyAES(symKey, nonce, encryptedMessage)
-
-    #     digest = message[-digestLength:]
-    #     message = message[:-digestLength]
-
-    #     if not cripto.verifyDigest(message, digest):
-    #         raise InvalidPacket("Integrity verification failed")
-
-    #     votingInfoAsBytes = message
-    #     votingInfo = json.loads(votingInfoAsBytes.decode())
-
-    #     return votingInfo
-
     def handleVotingRequestPacket(self, packet):
         packetAsDict = json.loads(packet.decode())
         
