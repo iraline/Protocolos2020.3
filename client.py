@@ -186,9 +186,15 @@ class VotingClient:
 
     def __init__(self, clientPrivateKey, clientPublicKey, serverPublicKey, clientPassword=None):
 
-        self.privateKey = serialization.load_pem_private_key(
-            clientPrivateKey, password=clientPassword)
-        self.publicKey = serialization.load_pem_public_key(clientPublicKey)
+        if clientPrivateKey is not None:
+            self.privateKey = serialization.load_pem_private_key(
+                clientPrivateKey, 
+                password=clientPassword
+            )
+        
+        if clientPublicKey is not None:
+            self.publicKey = serialization.load_pem_public_key(clientPublicKey)
+        
         self.serverPublicKey = serialization.load_pem_public_key(
             serverPublicKey)
         self.token = None

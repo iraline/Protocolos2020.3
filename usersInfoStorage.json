@@ -1,22 +1,17 @@
 [
-    {
-        "username": "gabriel",
-        "password": "12345",
-        "id": "gabriel"
-    },
-    {
-        "username": "iraline",
-        "password": "password",
-        "id": "iraline"
-    },
-    {
-        "username": "julio",
-        "password": "admin",
-        "id": "julio"
-    },
-    {
-        "id": "zezinho",
-        "username": "zezinho@gmail.com",
-        "password": "$2b$12$0/aIkgdqipvKGw3VTrjfa.4jm6cBYPBo1wgESSYXjaqW/RH7xxsji"
-    }
+  {
+    "username": "gabriel",
+    "password": "12345",
+    "id": "gabriel"
+  },
+  {
+    "username": "iraline",
+    "password": "password",
+    "id": "iraline"
+  },
+  {
+    "username": "julio",
+    "password": "admin",
+    "id": "julio"
+  }
 ]

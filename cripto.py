@@ -103,7 +103,7 @@ def verifySignature(publicKey, message, signature):
             ),
             hashes.SHA256()
         )
-    except exceptions.InvalidSignature:
+    except:
         matchesSignature = False
 
     return matchesSignature

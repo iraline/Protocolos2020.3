@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives import serialization
 import json
 from base64 import b64encode, b64decode
 import _thread
-
+from exceptions import InvalidPacket
 
 class Biblioteca():
 
@@ -27,14 +27,14 @@ class Biblioteca():
             Return the object.
     """
 
-    def __init__(self, host, port, serverPublicKey, usersID=None, usersCredentials=None,  serverPrivateKey=None, clientPublicKey=None, clientPrivateKey=None):
+    def __init__(self, host, port, serverPublicKey, usersID=None, usersCredentials=None,  serverPrivateKey=None, clientPublicKey=None, clientPrivateKey=None, protocolMode='client'):
 
         self.host = host
         self.port = port
 
         self.serverPublicKey = serverPublicKey
 
-        if clientPublicKey is not None and clientPrivateKey is not None:
+        if protocolMode == 'client':
             self.client = client.VotingClient(
                 clientPrivateKey=clientPrivateKey,
                 clientPublicKey=clientPublicKey,
@@ -42,7 +42,7 @@ class Biblioteca():
                 clientPassword=None
             )
 
-        else:
+        elif protocolMode == 'server':
             self.server = server.VotingServer(
                 usersCredentials,
                 usersID,
@@ -356,6 +356,7 @@ class Biblioteca():
         )
 
         if not status:
+            print(status)
             return status
 
         # Send user registration information
@@ -379,22 +380,31 @@ class Biblioteca():
     def _handleRegisterRequest(self, conn, packet):
 
         # Receive User ID Packet
-        userID, symKey, hmacKey = self.server.parseClientIDRegisterRequest(
-            packet)
+        clientData = self.server.parseClientIDRegisterRequest(packet)
 
-        # Verify if id is usable
-        status = 'ok'
-        if not self.server.getUserPublicKey(userID):
-            status = 'invalido'
+        symKey = clientData['symKey']
+        hmacKey = clientData['hmacKey']
+        status = clientData['status']
+        statusText = clientData.get('statusText', None)
+        userID = clientData.get('userID', None)
 
-        statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
+        statusPacket = self.server.createStatusPacket(status, symKey, hmacKey, statusText=statusText)
         conn.send(statusPacket)
-        print("[REGISTER] - Send Status Packet")
+
+        print(status)
+        if status.lower() != 'ok':
+            return
 
         # Get User Info (Login and Password)
         registerInfoPacket = conn.recv()
-        status = self.server.checkClientInfoRegisterRequest(
-            userID, registerInfoPacket, symKey, hmacKey)
 
-        statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
+        try:
+            status = self.server.checkClientInfoRegisterRequest(
+                userID, registerInfoPacket, symKey, hmacKey)
+            statusText = None
+        except InvalidPacket as err:
+            status = 'invalido'
+            statusText = str(err)
+
+        statusPacket = self.server.createStatusPacket(status, symKey, hmacKey, statusText=statusText)
         conn.send(statusPacket)

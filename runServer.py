@@ -5,10 +5,11 @@ import time
 
 # Read Server's Private and Public Keys to load VotingServer
 def loadVotingServer():
+   
     usersPubKeys = 'usersPubKeys.json'
     userInfoFilePath = None
-    with open('./tests/keys/server_test_keys.pem', 'rb') as privateKey: 
-        with open('./tests/keys/server_test_keys.pub', 'rb') as publicKey: 
+    with open('./keys/server.pem', 'rb') as privateKey: 
+        with open('./keys/server.pub', 'rb') as publicKey: 
             return Biblioteca(
                 'localhost',
                 9595,
@@ -16,6 +17,7 @@ def loadVotingServer():
                 userInfoFilePath,
                 usersCredentials=usersPubKeys, 
                 serverPrivateKey=privateKey.read(), 
+                protocolMode='server'
             )
 
 vs = loadVotingServer()
