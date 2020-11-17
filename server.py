@@ -518,7 +518,10 @@ class VotingServer:
         login = message['login']
         password = message['password']
 
-        return self.createUser(userID, login, password)
+        if len(login) < 8 or len(password) < 8:
+            return 1, "Login ou senha menor que o tamanho minimo de 8 caracteres"
+
+        return 0, self.createUser(userID, login, password)
 
     
     """

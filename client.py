@@ -398,11 +398,13 @@ class VotingClient:
         tag = b64decode(message['tag'].encode())
         if not cripto.verifyTag(hmacKey, status.encode(), tag):
             raise InvalidPacket
-        
-        if status.lower() != 'ok':
-            return False
 
-        return True
+        if message['status'].lower() != 'ok':
+            return False, "Pacote invalido"
+        elif status.lower() == "login ou senha menor que o tamanho minimo de 8 caracteres":
+            return False, status
+
+        return True, "Your account has been created"
 
 
     """

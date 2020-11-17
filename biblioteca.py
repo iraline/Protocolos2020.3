@@ -392,9 +392,12 @@ class Biblioteca():
         registerInfoPacket = conn.recv()
 
         try:
-            status = self.server.checkClientInfoRegisterRequest(
+            num, status = self.server.checkClientInfoRegisterRequest(
                 userID, registerInfoPacket, symKey, hmacKey)
-            statusText = None
+            if num == 1:
+                statusText = "Error: Your login and password must have at least 8 characters"
+            else:
+                statusText = None
         except InvalidPacket as err:
             status = 'invalido'
             statusText = str(err)
