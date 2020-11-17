@@ -200,7 +200,6 @@ class Biblioteca():
         conn.send(loginRequestPacket)
 
         loginResponsePacket = conn.recv()
-
         conn.close()
 
         responseData = self.client.parseLoginResponse(loginResponsePacket, symKey)
@@ -281,12 +280,12 @@ class Biblioteca():
             True if the vote has been computed, else it returns false.
     """
 
-    def sendVoteSession(self, vote, sessionId):
+    def sendVoteSession(self, vote, sessionId, token):
 
         con = ClientNetworkConnection(self.host, self.port)
 
         voteRequest, symKey, nonce = self.client.createVoteRequest(
-            sessionId, vote)
+            sessionId, vote, token)
         con.send(b"".join([b"04", voteRequest]))
 
         encryptedByteAnswer = con.recv()
@@ -313,11 +312,8 @@ class Biblioteca():
 
         else:
             if status.decode() == "fail":
-                print("Your vote was not computed")
                 return False
-
             else:
-                print("Your vote has been computed")
                 return True
 
     ##################
@@ -350,7 +346,6 @@ class Biblioteca():
             hmacKey
         )
 
-        print(f'Make Register 1 Status {status}')
         if not status:
             return status
 
@@ -375,26 +370,31 @@ class Biblioteca():
     def _handleRegisterRequest(self, conn, packet):
 
         # Receive User ID Packet
-        data = self.server.parseClientIDRegisterRequest(packet)
-        print(data)
+        clientData = self.server.parseClientIDRegisterRequest(packet)
 
-        symKey = data['symKey']
-        hmacKey = data['hmacKey']
-        status = data['status']
-        statusText = data['statusText']
-        userID = data['userID']
+        symKey = clientData['symKey']
+        hmacKey = clientData['hmacKey']
+        status = clientData['status']
+        statusText = clientData.get('statusText', None)
+        userID = clientData.get('userID', None)
 
         statusPacket = self.server.createStatusPacket(status, symKey, hmacKey, statusText=statusText)
         conn.send(statusPacket)
 
         print(status)
-        if status != 'ok':
+        if status.lower() != 'ok':
             return
 
         # Get User Info (Login and Password)
         registerInfoPacket = conn.recv()
-        status = self.server.checkClientInfoRegisterRequest(
-            userID, registerInfoPacket, symKey, hmacKey)
 
-        statusPacket = self.server.createStatusPacket(status, symKey, hmacKey)
+        try:
+            status = self.server.checkClientInfoRegisterRequest(
+                userID, registerInfoPacket, symKey, hmacKey)
+            statusText = None
+        except InvalidPacket as err:
+            status = 'invalido'
+            statusText = str(err)
+
+        statusPacket = self.server.createStatusPacket(status, symKey, hmacKey, statusText=statusText)
         conn.send(statusPacket)

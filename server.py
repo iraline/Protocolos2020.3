@@ -176,8 +176,8 @@ class VotingServer:
         authToken = os.urandom(48).hex()
 
         # Remove older tokens
-        for token, id in self.usersSessions.items():
-            if id == userID:
+        for token in list(self.usersSessions.keys()):
+            if self.usersSessions[token] == userID:
                 del self.usersSessions[token]
 
         self.usersSessions[authToken] = userID

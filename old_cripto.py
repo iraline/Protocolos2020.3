@@ -1,5 +1,6 @@
 import secrets
 import os
+import cripto
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -102,7 +103,7 @@ def verifySignature(publicKey, message, signature):
             ),
             hashes.SHA256()
         )
-    except exceptions.InvalidSignature:
+    except:
         matchesSignature = False
 
     return matchesSignature

@@ -34,7 +34,7 @@ class Biblioteca():
 
         self.serverPublicKey = serverPublicKey
 
-        if protocolMode == 'client':
+        if protocolMode.lower() == 'client':
             self.client = client.VotingClient(
                 clientPrivateKey=clientPrivateKey,
                 clientPublicKey=clientPublicKey,
@@ -42,7 +42,7 @@ class Biblioteca():
                 clientPassword=None
             )
 
-        elif protocolMode == 'server':
+        elif protocolMode.lower() == 'server':
             self.server = server.VotingServer(
                 usersCredentials,
                 usersID,
@@ -83,7 +83,7 @@ class Biblioteca():
         # Treat the session result
         number, answer = client.receiveSessionResult(answer, nonce, macKey)
 
-        return answer
+        return number, answer
 
     """
         Checks the received operator and forwards to the correct route to the server
@@ -188,8 +188,7 @@ class Biblioteca():
 
         # Parse message containing server's challenge
         helloResponseAsBytes = conn.recv()
-        print(
-            f"[LOGIN] Recebido nonce desafio: {helloResponseAsBytes.decode()}")
+        print(f"[LOGIN] Recebido nonce desafio: {helloResponseAsBytes.decode()}")
 
         helloResponse = json.loads(helloResponseAsBytes)
         challengeNonce = b64decode(helloResponse['nonce'].encode())
@@ -203,19 +202,17 @@ class Biblioteca():
         conn.send(loginRequestPacket)
 
         loginResponsePacket = conn.recv()
-
         conn.close()
 
         responseData = self.client.parseLoginResponse(loginResponsePacket, symKey)
 
         if not responseData['status'].lower() == 'ok':
-            return False
+            return False, None
 
         token = responseData['token']
 
         self.client.token = token
-
-        return token
+        return True, token
 
     """
         Function for the server to handle the login flux
@@ -286,12 +283,12 @@ class Biblioteca():
             True if the vote has been computed, else it returns false.
     """
 
-    def sendVoteSession(self, vote, sessionId):
+    def sendVoteSession(self, vote, sessionId, token):
 
         con = ClientNetworkConnection(self.host, self.port)
 
         voteRequest, symKey, nonce = self.client.createVoteRequest(
-            sessionId, vote)
+            sessionId, vote, token)
         con.send(b"".join([b"04", voteRequest]))
 
         encryptedByteAnswer = con.recv()
@@ -318,11 +315,8 @@ class Biblioteca():
 
         else:
             if status.decode() == "fail":
-                print("Your vote was not computed")
                 return False
-
             else:
-                print("Your vote has been computed")
                 return True
 
     ##################
@@ -356,7 +350,6 @@ class Biblioteca():
         )
 
         if not status:
-            print(status)
             return status
 
         # Send user registration information

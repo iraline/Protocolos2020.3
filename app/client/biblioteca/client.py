@@ -307,12 +307,15 @@ class VotingClient:
 
         # Verify integrity and authentication
         if not cripto.verifySignature(self.serverPublicKey, digest, signedDigest):
+            print("Failed to verify signature")
             return False
 
         if not cripto.verifyDigest(statusMessageAsBytes, digest):
+            print("Failed to verify digest")
             return False
 
         statusMessage = json.loads(statusMessageAsBytes)
+        print(statusMessage)
         return statusMessage
 
 
@@ -452,16 +455,16 @@ class VotingClient:
             A byte array of the packet to be sent to the server
     """
 
-    def createVoteRequest(self, sessionID, candidate):
+    def createVoteRequest(self, sessionID, candidate, token):
 
-        if self.token == None:
+        if token == None:
             print("ERROR! Your token shouldn't be None! Please login before vote.")
             return
 
         votingInfo = {
             'sessionID': sessionID,
             'vote': candidate,
-            'token': self.token,
+            'token': token,
         }
         votingInfoAsBytes = json.dumps(votingInfo).encode()
 

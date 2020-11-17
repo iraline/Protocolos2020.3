@@ -3,6 +3,7 @@ from create_session import createVotingSession
 from verify_session import verifySessionResult  
 from register import registerUser  
 from login import loginUser  
+from vote import vote
 import os
 import sys
 
@@ -36,6 +37,7 @@ class App:
             REGISTER: registerUser,
             CREATE_SESSION: createVotingSession,
             VERIFY_SESSION: verifySessionResult,
+            VOTE: vote,
         }
 
     

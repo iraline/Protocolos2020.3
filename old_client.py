@@ -1,5 +1,5 @@
 import os
-from biblioteca import cripto
+import cripto
 import json
 from base64 import b64encode, b64decode
 from cryptography.hazmat.primitives import serialization
@@ -67,7 +67,6 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
     securityErrorCode = -1
     unfinishedSessionCode = 0
     finishedSessionCode = 1
-    sessionDoesNotExist = 2
 
     try:
         anErrorOccur = packet[:errorSz].decode() == "ERROR"
@@ -95,7 +94,7 @@ def receiveSessionResult(packet, lastNonce, HMACKey):
                     return unfinishedSessionCode, listOfCandidates
 
                 else:
-                    return sessionDoesNotExist, "This session doesn't exists"
+                    return unfinishedSessionCode, "This session doesn't exists"
             
             else:
                 return securityErrorCode, "The packet that the server sent is invalid"
@@ -192,7 +191,7 @@ class VotingClient:
                 clientPrivateKey, 
                 password=clientPassword
             )
-
+        
         if clientPublicKey is not None:
             self.publicKey = serialization.load_pem_public_key(clientPublicKey)
         
@@ -213,6 +212,7 @@ class VotingClient:
 
     def signMessage(self, message):
         return cripto.signMessage(self.privateKey, message)
+
 
 
     """
@@ -307,15 +307,12 @@ class VotingClient:
 
         # Verify integrity and authentication
         if not cripto.verifySignature(self.serverPublicKey, digest, signedDigest):
-            print("Failed to verify signature")
             return False
 
         if not cripto.verifyDigest(statusMessageAsBytes, digest):
-            print("Failed to verify digest")
             return False
 
         statusMessage = json.loads(statusMessageAsBytes)
-        print(statusMessage)
         return statusMessage
 
 
@@ -393,13 +390,12 @@ class VotingClient:
 
         message = json.loads(messageAsBytes)
 
-        print(message)
         status = message['status']
         tag = b64decode(message['tag'].encode())
         if not cripto.verifyTag(hmacKey, status.encode(), tag):
             raise InvalidPacket
-        
-        if status.lower() != 'ok':
+
+        if message['status'].lower() != 'ok':
             return False
 
         return True
@@ -495,7 +491,6 @@ class VotingClient:
             'encryptedKey': b64encode(encryptedKey).decode(),
             'nonce': b64encode(nonce).decode(),
         }
-        
 
         return json.dumps(packet).encode(), symKey, nonce
     
