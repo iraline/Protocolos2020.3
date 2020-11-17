@@ -396,9 +396,11 @@ class VotingClient:
             raise InvalidPacket
 
         if message['status'].lower() != 'ok':
-            return False
+            return False, "Pacote invalido"
+        elif status.lower() == "login ou senha menor que o tamanho minimo de 8 caracteres":
+            return False, status
 
-        return True
+        return True, "Your account has been created"
 
 
     """

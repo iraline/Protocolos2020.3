@@ -47,7 +47,7 @@ def registerUser(app):
         protocolMode='client',
     )
 
-    response = protocol.makeRegisterRequest(
+    response, description = protocol.makeRegisterRequest(
         userID=userInfo['id'],
         login=userInfo['username'],
         password=userInfo['password'],
@@ -57,5 +57,6 @@ def registerUser(app):
         print("\nCadastro realizado com sucesso.")
     else:
         print("\nErro ao realizar cadastro.")
+        print(description)
 
     
