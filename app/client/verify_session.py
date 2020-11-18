@@ -37,12 +37,9 @@ def verifySessionResult(app):
     elif status == STATUS_UNFINISHED_SESSION:
         print("Sessão em andamento. Por favor, aguarde o termino.")
     elif STATUS_FINISHED_SESSION:
-        printSessionResult(msg)
+        printSessionResult(msg.candidates)
     elif STATUS_SESSION_DOES_NOT_EXIST:
         print("Sessão não existe.")
     else:
         print("Erro ao realizar requisição")
 
-
-    print(msg)
-    input('\n\nDigite <Enter> para voltar ao menu principal.')
