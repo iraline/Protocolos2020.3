@@ -4,10 +4,10 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import serialization
 from cryptography.exceptions import InvalidSignature
-from biblioteca.exceptions import InvalidPacket
-import biblioteca.cripto
+from .exceptions import InvalidPacket
+from . import cripto
 import json
-from biblioteca.VotingSession import VotingSession
+from .VotingSession import VotingSession
 from cerberus import Validator
 import os
 import binascii
@@ -15,7 +15,7 @@ from base64 import b64encode, b64decode
 import bcrypt
 import socket
 import threading
-from biblioteca.networking import ServerNetworkConnetion
+from .networking import ServerNetworkConnetion
 
 class VotingServer:
 
@@ -130,7 +130,6 @@ class VotingServer:
 
         for user in self.users:
 
-
             if userID == user['id']:
                 return False
             
@@ -177,8 +176,8 @@ class VotingServer:
         authToken = os.urandom(48).hex()
 
         # Remove older tokens
-        for token, id in self.usersSessions.items():
-            if id == userID:
+        for token in list(self.usersSessions.keys()):
+            if self.usersSessions[token] == userID:
                 del self.usersSessions[token]
 
         self.usersSessions[authToken] = userID
@@ -259,9 +258,9 @@ class VotingServer:
         hmacKey = self.decryptPacketWithServerPrivateKey(encryptedHMACKey)
 
         if not cripto.verifyTag(hmacKey, message, hmacTag):
-            text = 'error-This tag is invalid'
-            tag = cripto.createTag(hmacKey, text.encode())
-            message = b"".join([session.id.encode(), tag])
+            text = 'error-This tag is invalid'.encode()
+            tag = cripto.createTag(hmacKey, text)
+            message = b"".join([text, tag])
             return message
 
         # Get Session Options
@@ -269,8 +268,8 @@ class VotingServer:
 
         # Check if session options sent make for a valid session
         if not self.validateVotingSessionOptions(sessionInfo):
-            text = 'error-This session is invalid'
-            tag = cripto.createTag(hmacKey, text.encode())
+            text = 'error-This session is invalid'.encode()
+            tag = cripto.createTag(hmacKey, text)
             message = b"".join([text, tag])
             return message
 
@@ -286,9 +285,9 @@ class VotingServer:
         self.sessions[session.id] = session
 
         # Generating a tag to have integrity
-        text = f'success-{session.id}'
-        tag = cripto.createTag(hmacKey, text.encode())
-        message = b"".join([session.id.encode(), tag])
+        text = f'ok-{session.id}'.encode()
+        tag = cripto.createTag(hmacKey, text)
+        message = b"".join([text, tag])
 
         return message
 
@@ -346,6 +345,10 @@ class VotingServer:
         isPacketValid = validator.validate(sessionInfo)
 
         isSessionNameAvailalable = sessionInfo['sessionName'] not in self.sessions
+        
+        if not isPacketValid:
+            print(sessionInfo)
+            print(validator._errors)
 
         return isPacketValid and isSessionNameAvailalable
 
@@ -397,7 +400,6 @@ class VotingServer:
 
     def sendSessionResult(self, packet):
         status, nonce, sessionId, macKey = self.verifySessionTag(packet)
-
 
         if status == False:
             # In this case we should return a packet signaling that the tag was invalid
@@ -470,10 +472,9 @@ class VotingServer:
                     message = b"".join([b"ERROR", nonce])
 
                     auxList = []
-                    i = 0
-                    for candidate in self.sessions[sessionId]:
-                        auxList.append((candidate, i))
-                        i += 1
+                    candidateList = list(self.sessions[sessionId].candidates.keys())
+                    for id, candidate in enumerate(candidateList):
+                        auxList.append((candidate, id))
 
                     dumpedList = json.dumps(auxList)
                     message = b"".join([message, b"UnfinishedS", dumpedList.encode()])
@@ -504,7 +505,7 @@ class VotingServer:
         tag = b64decode(jsonPack['tag'].encode())
 
         if not cripto.verifyTag(macTag, encryptedMessage, tag):
-            raise InvalidPacket
+            raise InvalidPacket("Failed to verify integrity")
         
         decryptedMessage = cripto.decryptMessageWithKeyAES(
             symmetricKey, 
@@ -517,8 +518,10 @@ class VotingServer:
         login = message['login']
         password = message['password']
 
-        self.createUser(userID, login, password)
-        return True
+        if len(login) < 8 or len(password) < 8:
+            return 1, "Login ou senha menor que o tamanho minimo de 8 caracteres"
+
+        return 0, self.createUser(userID, login, password)
 
     
     """
@@ -781,16 +784,32 @@ class VotingServer:
         digest = b64decode(message['digest'].encode())
         userID = message['userID']
 
+        data = {
+            'status': 'ok',
+            'symKey': symKey,
+            'hmacKey': hmacKey,
+        }
+
         if not self.getUserPublicKey(userID):
-            raise InvalidPacket
+            data['status'] = 'invalido'
+            data['statusText'] = 'User id was not physically registered'
+            return data
 
         if not cripto.verifySignature(self.getUserPublicKey(userID), digest, signedDigest):
-            raise InvalidPacket
+            data['status'] = 'invalido'
+            data['statusText'] = 'User signature doesn\'t match'
+            return data
 
         if not cripto.verifyDigest(userID, digest):
-            raise InvalidPacket
+            data['status'] = 'invalido'
+            data['statusText'] = 'Fail to verify integrity'
+            return data
         
-        return userID, symKey, hmacKey
+        if data['status'] == 'ok':
+            data['userID'] = userID
+            return data
+        
+        return data
 
 
     """
@@ -804,18 +823,20 @@ class VotingServer:
         Returns:
             Packet with operation status
     """
-    def createStatusPacket(self, status, symKey, hmacKey):
+    def createStatusPacket(self, status, symKey, hmacKey, statusText=None):
         
-        if status:
-            status = 'ok'
-        else:
-            status = 'invalido'
+        if isinstance(status, bool):
+            status = 'ok' if status else 'invalido'
 
         message = {
             'status': status
         } 
+
+        if statusText is not None:
+            message['statusText'] = statusText
         
-        tag = cripto.createTag(hmacKey, status)
+        print(status)
+        tag = cripto.createTag(hmacKey, status.encode())
         message['tag'] = b64encode(tag).decode()
 
         nonce = cripto.generateNonce()

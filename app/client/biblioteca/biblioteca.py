@@ -1,12 +1,14 @@
 import socket
-from biblioteca import client, server, cripto
+from . import cripto
+from . import server
+from . import client
 from threading import Thread
-from biblioteca.networking import ClientNetworkConnection, ServerNetworkConnetion
+from .networking import ClientNetworkConnection, ServerNetworkConnetion
 from cryptography.hazmat.primitives import serialization
 import json
 from base64 import b64encode, b64decode
 import _thread
-
+from .exceptions import InvalidPacket
 
 class Biblioteca():
 
@@ -261,6 +263,7 @@ class Biblioteca():
         conn.send(b"".join([b"03", message]))
 
         byteAnswer = conn.recv()
+
         tag = byteAnswer[-tagSize:]
         receivedSessionId = byteAnswer[:-tagSize].decode()
 
@@ -389,9 +392,12 @@ class Biblioteca():
         registerInfoPacket = conn.recv()
 
         try:
-            status = self.server.checkClientInfoRegisterRequest(
+            num, status = self.server.checkClientInfoRegisterRequest(
                 userID, registerInfoPacket, symKey, hmacKey)
-            statusText = None
+            if num == 1:
+                statusText = "Error: Your login and password must have at least 8 characters"
+            else:
+                statusText = None
         except InvalidPacket as err:
             status = 'invalido'
             statusText = str(err)

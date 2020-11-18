@@ -6,9 +6,9 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes, hmac
 from cryptography import exceptions
-from exceptions import InvalidPacket
-from VotingSession import VotingSession
-from networking import ClientNetworkConnection
+from .exceptions import InvalidPacket
+from .VotingSession import VotingSession
+from .networking import ClientNetworkConnection
 
 """
         Request a verification for a session result
@@ -399,10 +399,10 @@ class VotingClient:
         if not cripto.verifyTag(hmacKey, status.encode(), tag):
             raise InvalidPacket
 
-        if message['status'].lower() != 'ok':
-            return False, "Pacote invalido"
-        elif status.lower() == "login ou senha menor que o tamanho minimo de 8 caracteres":
+        if status.lower() == "login ou senha menor que o tamanho minimo de 8 caracteres":
             return False, status
+        elif message['status'].lower() != 'ok':
+            return False, "Pacote invalido"
 
         return True, "Your account has been created"
 
